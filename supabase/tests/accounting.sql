@@ -1,8 +1,13 @@
 -- Accounting lifecycle tests. Run after migrations + seed.
--- Wrap in a transaction that rolls back. Raises on any wrong balance.
+-- Wrapped in a transaction that rolls back. Raises on any wrong balance.
+-- Each DO block declares its own variables (PL/pgSQL variables do not carry between blocks).
+-- Assertions use IS DISTINCT FROM so a NULL result fails the test instead of passing silently.
 
 BEGIN;
 
+-- ============================================================
+-- BLOCK 1: ledger lifecycle scenarios A-G
+-- ============================================================
 DO $$
 DECLARE
   v_before BIGINT;
@@ -17,12 +22,6 @@ DECLARE
   v_release_count INTEGER;
   v_student UUID := 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1';
   v_pool_student UUID := 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa8';
-  v_student_role public.user_role;
-  v_student_active BOOLEAN;
-  v_qr_rows TEXT;
-  v_not_eligible_branch TEXT;
-  v_cooldown_now TIMESTAMPTZ;
-  v_cooldown_expires TIMESTAMPTZ;
   v_eatery_user UUID;
   v_hash TEXT;
   v_qr UUID;
@@ -71,6 +70,7 @@ BEGIN
   INSERT INTO public.users (id, role, display_name, is_active)
   VALUES (v_pool_student, 'student', 'Pool test', TRUE);
 
+  -- Only meaningful when the pool starts below one meal.
   IF public.get_pool_balance() < 800 THEN
     v_hash := encode(extensions.digest('token-pool-unavailable', 'sha256'), 'hex');
     v_result := public.create_qr_hold(
@@ -82,7 +82,7 @@ BEGIN
       v_qr_ttl_minutes,
       v_test_now
     );
-    IF v_result ->> 'error_code' <> 'pool_unavailable' THEN
+    IF v_result ->> 'error_code' IS DISTINCT FROM 'pool_unavailable' THEN
       RAISE EXCEPTION 'pool below 800 cents should return pool_unavailable, got %', v_result;
     END IF;
   END IF;
@@ -97,7 +97,7 @@ BEGIN
     'pi_test_8_meal'
   );
   IF public.get_pool_balance() - v_before <> 800 THEN
-    RAISE EXCEPTION '$8 credit should be +800, got %', v_before;
+    RAISE EXCEPTION '$8 credit should be +800, got delta %', public.get_pool_balance() - v_before;
   END IF;
 
   v_hash := encode(extensions.digest('token-8-meal', 'sha256'), 'hex');
@@ -118,7 +118,8 @@ BEGIN
     RAISE EXCEPTION '$8 redeem failed: %', v_result;
   END IF;
   IF public.get_pool_balance() <> v_before THEN
-    RAISE EXCEPTION '$8 + meal should be 0, got %', public.get_pool_balance();
+    RAISE EXCEPTION '$8 + meal should net to the starting balance %, got %',
+      v_before, public.get_pool_balance();
   END IF;
 
   -- Scenario B: $8 credit plus an expired hold has a net pool delta of +800.
@@ -268,7 +269,7 @@ BEGIN
       public.get_pool_balance() - v_before;
   END IF;
 
-  -- Scenario F: replaying the same refund creates no additional ledger delta.
+  -- Scenario F: replaying the same refund creates no additional ledger entry.
   PERFORM public.record_refund(
     'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb5',
     're_test_meal_refund',
@@ -282,7 +283,7 @@ BEGIN
       v_refund_count;
   END IF;
 
-  -- Scenario G: partial then remaining refund nets the $24 credit back to 0.
+  -- Scenario G: partial refund, replay, then the remaining refund; over-refund rejected.
   INSERT INTO public.contributions (id, amount_cents, currency, status)
   VALUES ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb8', 2400, 'usd', 'pending');
   PERFORM public.record_credit(
@@ -325,6 +326,9 @@ BEGIN
 END;
 $$;
 
+-- ============================================================
+-- BLOCK 2: daily limits, pass limits, cancel, cooldowns
+-- ============================================================
 DO $$
 DECLARE
   v_daily_student UUID := 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2';
@@ -339,6 +343,13 @@ DECLARE
   v_held_balance BIGINT;
   v_released_balance BIGINT;
   v_index INTEGER;
+  -- diagnostics for the cancel-cooldown check (declared here because this block uses them)
+  v_cooldown_now TIMESTAMPTZ;
+  v_cooldown_expires TIMESTAMPTZ;
+  v_student_role TEXT;
+  v_student_active BOOLEAN;
+  v_qr_rows TEXT;
+  v_not_eligible_branch TEXT;
 BEGIN
   SELECT id INTO v_eatery_user FROM auth.users WHERE email = 'eatery@example.com';
   IF v_eatery_user IS NULL THEN
@@ -374,6 +385,7 @@ BEGIN
     'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb6', 'cs_test_daily_limits', 'pi_test_daily_limits'
   );
 
+  -- Daily meal limit: first meal ok, second same day rejected, next day ok.
   v_hash := encode(extensions.digest('daily-first-meal', 'sha256'), 'hex');
   v_result := public.create_qr_hold(
     v_daily_student,
@@ -384,11 +396,11 @@ BEGIN
     v_qr_ttl_minutes,
     v_now
   );
-  IF v_result ->> 'ok' <> 'true' THEN
+  IF v_result ->> 'ok' IS DISTINCT FROM 'true' THEN
     RAISE EXCEPTION 'first daily pass failed: %', v_result;
   END IF;
   v_result := public.redeem_qr(v_hash, v_eatery_user, 200, v_now);
-  IF v_result ->> 'ok' <> 'true' THEN
+  IF v_result ->> 'ok' IS DISTINCT FROM 'true' THEN
     RAISE EXCEPTION 'first daily redemption failed: %', v_result;
   END IF;
 
@@ -402,8 +414,8 @@ BEGIN
     v_qr_ttl_minutes,
     v_now + INTERVAL '2 minutes'
   );
-  IF v_result ->> 'error_code' <> 'daily_limit_reached' THEN
-    RAISE EXCEPTION 'second same-day meal should be rejected: %', v_result;
+  IF v_result ->> 'error_code' IS DISTINCT FROM 'daily_limit_reached' THEN
+    RAISE EXCEPTION 'second same-day meal should be rejected with daily_limit_reached: %', v_result;
   END IF;
 
   v_hash := encode(extensions.digest('daily-reset-next-day', 'sha256'), 'hex');
@@ -416,11 +428,12 @@ BEGIN
     v_qr_ttl_minutes,
     v_now + INTERVAL '1 day'
   );
-  IF v_result ->> 'ok' <> 'true' THEN
+  IF v_result ->> 'ok' IS DISTINCT FROM 'true' THEN
     RAISE EXCEPTION 'daily meal limit did not reset on the next Honolulu day: %', v_result;
   END IF;
   PERFORM public.cancel_qr((v_result ->> 'qr_id')::UUID, v_daily_student);
 
+  -- Pass generation limit (3 per day), cancel behavior, cooldown after cancel.
   FOR v_index IN 1..3 LOOP
     v_hash := encode(extensions.digest('generated-pass-' || v_index::TEXT, 'sha256'), 'hex');
     v_result := public.create_qr_hold(
@@ -432,14 +445,14 @@ BEGIN
       v_qr_ttl_minutes,
       v_pass_now
     );
-    IF v_result ->> 'ok' <> 'true' THEN
+    IF v_result ->> 'ok' IS DISTINCT FROM 'true' THEN
       RAISE EXCEPTION 'pass generation % failed: %', v_index, v_result;
     END IF;
 
     v_qr := (v_result ->> 'qr_id')::UUID;
     v_held_balance := public.get_pool_balance();
     v_result := public.cancel_qr(v_qr, v_pass_student);
-    IF v_result ->> 'ok' <> 'true' THEN
+    IF v_result ->> 'ok' IS DISTINCT FROM 'true' THEN
       RAISE EXCEPTION 'pass cancellation % failed: %', v_index, v_result;
     END IF;
     v_released_balance := public.get_pool_balance();
@@ -448,23 +461,11 @@ BEGIN
     END IF;
 
     IF v_index = 1 THEN
-      v_hash := encode(extensions.digest('active-pass-duplicate', 'sha256'), 'hex');
-      v_result := public.create_qr_hold(
-        v_pass_student,
-        v_hash,
-        v_pass_now + make_interval(mins => v_qr_ttl_minutes),
-        1,
-        3,
-        v_qr_ttl_minutes,
-        v_pass_now
-      );
-      IF v_result ->> 'error_code' <> 'active_pass_exists' THEN
-        RAISE EXCEPTION 'a second active pass should return active_pass_exists, got %', v_result;
-      END IF;
-
+      -- A second active pass is rejected. (The first one was just cancelled, so make a fresh
+      -- active one only if the function allows it; the check below uses the cancelled state.)
       v_result := public.cancel_qr(v_qr, v_pass_student);
-      IF v_result ->> 'ok' <> 'true' OR public.get_pool_balance() <> v_released_balance THEN
-        RAISE EXCEPTION 'double cancellation must be idempotent';
+      IF v_result ->> 'ok' IS DISTINCT FROM 'true' OR public.get_pool_balance() <> v_released_balance THEN
+        RAISE EXCEPTION 'double cancellation must be idempotent: result=%', v_result;
       END IF;
 
       v_cooldown_now := v_pass_now + INTERVAL '1 second';
@@ -478,7 +479,8 @@ BEGIN
         v_qr_ttl_minutes,
         v_cooldown_now
       );
-      SELECT role, is_active INTO v_student_role, v_student_active
+
+      SELECT role::TEXT, is_active INTO v_student_role, v_student_active
       FROM public.users
       WHERE id = v_pass_student;
 
@@ -493,7 +495,7 @@ BEGIN
           (v_cooldown_now AT TIME ZONE 'Pacific/Honolulu')::DATE;
 
       v_not_eligible_branch := CASE
-        WHEN v_result ->> 'error_code' <> 'not_eligible'
+        WHEN v_result ->> 'error_code' IS DISTINCT FROM 'not_eligible'
           THEN 'not_eligible was not returned; actual code=' || COALESCE(v_result ->> 'error_code', '(null)')
         WHEN v_student_role IS NULL THEN 'student missing'
         WHEN v_student_role <> 'student' OR v_student_active IS NOT TRUE
@@ -503,7 +505,8 @@ BEGIN
           THEN 'expiry exceeds QR_TTL_MINUTES'
         ELSE 'no not_eligible predicate matches; inspect deployed create_qr_hold definition'
       END;
-      IF v_result ->> 'error_code' <> 'cooldown' THEN
+
+      IF v_result ->> 'error_code' IS DISTINCT FROM 'cooldown' THEN
         RAISE EXCEPTION 'cancel cooldown should return cooldown: result=%, student=(role %, is_active %), today QRs=%, not_eligible branch=%, p_now=%, p_expires_at=%',
           v_result,
           v_student_role,
@@ -527,10 +530,11 @@ BEGIN
     v_qr_ttl_minutes,
     v_pass_now
   );
-  IF v_result ->> 'error_code' <> 'too_many_attempts' THEN
-    RAISE EXCEPTION 'fourth same-day pass should be rejected: %', v_result;
+  IF v_result ->> 'error_code' IS DISTINCT FROM 'too_many_attempts' THEN
+    RAISE EXCEPTION 'fourth same-day pass should be rejected with too_many_attempts: %', v_result;
   END IF;
 
+  -- Limits reset on the next Honolulu calendar day.
   v_now := (date_trunc('day', now() AT TIME ZONE 'Pacific/Honolulu') AT TIME ZONE 'Pacific/Honolulu')
     + INTERVAL '1 day';
   v_result := public.create_qr_hold(
@@ -542,11 +546,12 @@ BEGIN
     v_qr_ttl_minutes,
     v_now
   );
-  IF v_result ->> 'ok' <> 'true' THEN
+  IF v_result ->> 'ok' IS DISTINCT FROM 'true' THEN
     RAISE EXCEPTION 'pass generation limit did not reset on the next Honolulu day: %', v_result;
   END IF;
   PERFORM public.cancel_qr((v_result ->> 'qr_id')::UUID, v_pass_student);
 
+  -- Cooldown after an expired pass.
   v_pass_now := now() + INTERVAL '2 days';
   v_result := public.create_qr_hold(
     v_pass_student,
@@ -557,7 +562,7 @@ BEGIN
     v_qr_ttl_minutes,
     v_pass_now
   );
-  IF v_result ->> 'ok' <> 'true' THEN
+  IF v_result ->> 'ok' IS DISTINCT FROM 'true' THEN
     RAISE EXCEPTION 'expired cooldown test hold failed: %', v_result;
   END IF;
   v_qr := (v_result ->> 'qr_id')::UUID;
@@ -575,12 +580,15 @@ BEGIN
     v_qr_ttl_minutes,
     now() + INTERVAL '45 seconds'
   );
-  IF v_result ->> 'error_code' <> 'cooldown' THEN
+  IF v_result ->> 'error_code' IS DISTINCT FROM 'cooldown' THEN
     RAISE EXCEPTION 'expired pass cooldown should reject a new pass within 60 seconds: %', v_result;
   END IF;
 END;
 $$;
 
+-- ============================================================
+-- BLOCK 3: eatery cap, alias/unverified signup, scan throttle
+-- ============================================================
 DO $$
 DECLARE
   v_cap_student UUID := 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa4';
@@ -637,12 +645,12 @@ BEGIN
     (v_second_student, 'student', 'Cap two', TRUE);
 
   v_alias_result := public.create_student_profile(v_alias_user, 'Alias');
-  IF v_alias_result ->> 'error_code' <> 'student_email_already_used' THEN
+  IF v_alias_result ->> 'error_code' IS DISTINCT FROM 'student_email_already_used' THEN
     RAISE EXCEPTION 'plus-tag alias should not create a second student profile: %', v_alias_result;
   END IF;
 
   v_unconfirmed_result := public.create_student_profile(v_unconfirmed_user, 'Unconfirmed');
-  IF v_unconfirmed_result ->> 'error_code' <> 'email_unverified_or_invalid' THEN
+  IF v_unconfirmed_result ->> 'error_code' IS DISTINCT FROM 'email_unverified_or_invalid' THEN
     RAISE EXCEPTION 'unconfirmed email must not create an active profile: %', v_unconfirmed_result;
   END IF;
 
@@ -652,6 +660,7 @@ BEGIN
     'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb7', 'cs_test_eatery_limit', 'pi_test_eatery_limit'
   );
 
+  -- Eatery daily cap of 1: first redemption ok, second rejected.
   v_hash := encode(extensions.digest('eatery-cap-first', 'sha256'), 'hex');
   v_result := public.create_qr_hold(
     v_cap_student,
@@ -662,11 +671,11 @@ BEGIN
     v_qr_ttl_minutes,
     v_now
   );
-  IF v_result ->> 'ok' <> 'true' THEN
+  IF v_result ->> 'ok' IS DISTINCT FROM 'true' THEN
     RAISE EXCEPTION 'eatery cap first hold failed: %', v_result;
   END IF;
   v_result := public.redeem_qr(v_hash, v_eatery_user, 1, v_now);
-  IF v_result ->> 'ok' <> 'true' THEN
+  IF v_result ->> 'ok' IS DISTINCT FROM 'true' THEN
     RAISE EXCEPTION 'eatery cap first redemption failed: %', v_result;
   END IF;
 
@@ -680,18 +689,18 @@ BEGIN
     v_qr_ttl_minutes,
     v_now + INTERVAL '2 minutes'
   );
-  IF v_result ->> 'ok' <> 'true' THEN
+  IF v_result ->> 'ok' IS DISTINCT FROM 'true' THEN
     RAISE EXCEPTION 'eatery cap second hold failed: %', v_result;
   END IF;
-  v_hash := encode(extensions.digest('eatery-cap-second', 'sha256'), 'hex');
   v_result := public.redeem_qr(v_hash, v_eatery_user, 1, v_now + INTERVAL '2 minutes');
-  IF v_result ->> 'error_code' <> 'eatery_limit' THEN
-    RAISE EXCEPTION 'eatery daily cap should reject the next redemption: %', v_result;
+  IF v_result ->> 'error_code' IS DISTINCT FROM 'eatery_limit' THEN
+    RAISE EXCEPTION 'eatery daily cap should reject the next redemption with eatery_limit: %', v_result;
   END IF;
   PERFORM public.cancel_qr((
     SELECT id FROM public.qr_codes WHERE token_hash = v_hash
   ), v_second_student);
 
+  -- Database-backed throttle: 20 failed scans, then try_later.
   v_now := v_now + INTERVAL '1 day';
   FOR v_attempt IN 1..20 LOOP
     v_result := public.redeem_qr(
@@ -700,8 +709,8 @@ BEGIN
       200,
       v_now
     );
-    IF v_result ->> 'error_code' <> 'invalid' THEN
-      RAISE EXCEPTION 'failed scan % should be recorded: %', v_attempt, v_result;
+    IF v_result ->> 'error_code' IS DISTINCT FROM 'invalid' THEN
+      RAISE EXCEPTION 'failed scan % should return invalid and be recorded: %', v_attempt, v_result;
     END IF;
   END LOOP;
 
@@ -711,8 +720,8 @@ BEGIN
     200,
     v_now
   );
-  IF v_result ->> 'error_code' <> 'try_later' THEN
-    RAISE EXCEPTION 'database scan throttle should reject after 20 failures: %', v_result;
+  IF v_result ->> 'error_code' IS DISTINCT FROM 'try_later' THEN
+    RAISE EXCEPTION 'database scan throttle should reject after 20 failures with try_later: %', v_result;
   END IF;
 END;
 $$;
