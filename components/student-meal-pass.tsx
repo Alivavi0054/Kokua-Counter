@@ -218,6 +218,7 @@ export function StudentMealPass() {
         <CardContent className="space-y-3">
           <p>Your meal was accepted at {eateryName ?? "a participating eatery"}.</p>
           {redeemedAt ? <p className="text-sm text-muted-foreground">{new Date(redeemedAt).toLocaleString()}</p> : null}
+          <Button onClick={() => void replacePass()}>Get a new pass</Button>
           <Button variant="outline" asChild><Link href="/student/history">View history</Link></Button>
         </CardContent>
       </Card>
@@ -255,8 +256,8 @@ export function StudentMealPass() {
         <p className="text-sm text-muted-foreground">One meal · single use</p>
       </CardHeader>
       <CardContent className="space-y-5 text-center">
-        <div className="mx-auto w-fit rounded-md bg-white p-3">
-          <QRCodeSVG value={token} size={280} level="Q" className="h-auto max-w-full" />
+        <div className="mx-auto w-full max-w-[304px] rounded-md bg-white p-3">
+          <QRCodeSVG title="Single-use meal pass QR code" value={token} size={280} level="Q" className="mx-auto h-auto w-full max-w-[280px]" />
         </div>
         <div
           className="mx-auto grid size-28 place-items-center rounded-full p-2"

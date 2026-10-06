@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiRole } from "@/lib/auth/guards";
 import { hashQrToken } from "@/lib/crypto/qr-token";
-import { redeemQr } from "@/lib/ledger";
+import { recordQrScanFailure, redeemQr } from "@/lib/ledger";
 import { rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -21,6 +21,17 @@ const failureMessages = {
   try_later: "There have been too many unsuccessful scans. Please wait before trying again.",
 } as const;
 
+async function invalidScanResponse(eateryUserId: string) {
+  try {
+    const allowed = await recordQrScanFailure(eateryUserId);
+    return allowed
+      ? NextResponse.json({ error_code: "invalid", error: failureMessages.invalid }, { status: 400 })
+      : NextResponse.json({ error_code: "try_later", error: failureMessages.try_later }, { status: 429 });
+  } catch {
+    return NextResponse.json({ error: "Could not verify this meal pass." }, { status: 500 });
+  }
+}
+
 export async function POST(request: Request) {
   const auth = await requireApiRole("eatery");
   if (!auth.ok) return auth.response;
@@ -34,11 +45,11 @@ export async function POST(request: Request) {
   try {
     json = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+    return invalidScanResponse(auth.user.id);
   }
   const parsed = bodySchema.safeParse(json);
   if (!parsed.success) {
-    return NextResponse.json({ error: "This code is not recognized." }, { status: 400 });
+    return invalidScanResponse(auth.user.id);
   }
 
   try {

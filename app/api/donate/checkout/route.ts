@@ -11,7 +11,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const bodySchema = z.object({
-  amount_cents: z.number().int().min(MEAL_VALUE_CENTS).max(MAX_DONATION_CENTS),
+  amount_cents: z.number().int().min(MEAL_VALUE_CENTS).max(MAX_DONATION_CENTS)
+    .refine((amount) => amount % 100 === 0),
   donor_email: z.string().email().max(254).optional(),
   is_anonymous: z.boolean().optional().default(true),
 });
@@ -45,16 +46,16 @@ export async function POST(request: Request) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const appUrl = getAppUrl("donation checkout redirects");
 
   const admin = createAdminClient();
   const { data: contribution, error } = await admin
     .from("contributions")
     .insert({
-      donor_user_id: user?.id ?? null,
+      donor_user_id: parsed.data.is_anonymous ? null : user?.id ?? null,
       amount_cents: parsed.data.amount_cents,
       currency: "usd",
       status: "pending",
-      donor_email: parsed.data.donor_email ?? user?.email ?? null,
       is_anonymous: parsed.data.is_anonymous,
     })
     .select("id")
@@ -67,7 +68,6 @@ export async function POST(request: Request) {
     );
   }
 
-  const appUrl = getAppUrl("donation checkout redirects");
   let session;
   try {
     session = await getStripe().checkout.sessions.create({

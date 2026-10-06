@@ -25,11 +25,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Email and password are required." }, { status: 400 });
   }
 
+  const appUrl = getAppUrl("developer login redirects");
   const supabase = createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
     return NextResponse.json({ error: "Invalid login." }, { status: 401 });
   }
 
-  return NextResponse.redirect(new URL("/student", getAppUrl("developer login redirects")));
+  return NextResponse.redirect(new URL("/student", appUrl));
 }

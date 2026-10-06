@@ -44,7 +44,7 @@ export default async function HomePage() {
         <div className="space-y-4">
           <h2 className="font-serif text-2xl">For students</h2>
           <ol className="space-y-3">
-            <li><span className="font-semibold">01</span> Sign in with a confirmed `@hawaii.edu` email.</li>
+            <li><span className="font-semibold">01</span> Sign in with a confirmed @hawaii.edu email.</li>
             <li><span className="font-semibold">02</span> Create a single-use meal pass.</li>
             <li><span className="font-semibold">03</span> Show the code at a participating eatery.</li>
           </ol>

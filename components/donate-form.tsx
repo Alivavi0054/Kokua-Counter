@@ -24,6 +24,10 @@ export function DonateForm() {
     preset === "custom"
       ? Math.round(Number.parseFloat(customDollars || "0") * 100)
       : preset;
+  const customIsWholeDollar = preset !== "custom" ||
+    (Number.isFinite(Number(customDollars)) && Number.isInteger(Number(customDollars)));
+  const amountIsValid = customIsWholeDollar && Number.isSafeInteger(amountCents) &&
+    amountCents >= MEAL_VALUE_CENTS && amountCents <= MAX_DONATION_CENTS;
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -71,6 +75,7 @@ export function DonateForm() {
                   key={cents}
                   type="button"
                   variant={preset === cents ? "default" : "outline"}
+                  aria-pressed={preset === cents}
                   onClick={() => setPreset(cents)}
                 >
                   <span className="grid gap-1">
@@ -82,6 +87,7 @@ export function DonateForm() {
               <Button
                 type="button"
                 variant={preset === "custom" ? "default" : "outline"}
+                aria-pressed={preset === "custom"}
                 onClick={() => setPreset("custom")}
               >
                 Custom
@@ -97,15 +103,17 @@ export function DonateForm() {
                   min={8}
                   max={MAX_DONATION_CENTS / 100}
                   step="1"
+                  aria-invalid={!amountIsValid}
+                  aria-describedby="amount-help"
                   value={customDollars}
                   onChange={(event) => setCustomDollars(event.target.value)}
                 />
               </div>
             ) : null}
-            <p className="text-sm text-muted-foreground">
-              {Number.isFinite(amountCents) && amountCents >= MEAL_VALUE_CENTS
+            <p id="amount-help" className="text-sm text-muted-foreground" role={amountIsValid ? undefined : "status"}>
+              {amountIsValid
                 ? `${mealsFromCents(amountCents)} meal${mealsFromCents(amountCents) === 1 ? "" : "s"}`
-                : `Minimum is ${formatUsdFromCents(MEAL_VALUE_CENTS)}.`}
+                : `Enter an amount from ${formatUsdFromCents(MEAL_VALUE_CENTS)} to ${formatUsdFromCents(MAX_DONATION_CENTS)} in whole dollars.`}
             </p>
           </fieldset>
 
@@ -136,7 +144,7 @@ export function DonateForm() {
             </p>
           ) : null}
 
-          <Button type="submit" className="w-full" disabled={pending}>
+          <Button type="submit" className="w-full" disabled={pending || !amountIsValid}>
             {pending ? "Redirecting to checkout…" : "Continue to checkout"}
           </Button>
         </form>

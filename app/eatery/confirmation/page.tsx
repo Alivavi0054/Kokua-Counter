@@ -27,7 +27,9 @@ export default async function EateryConfirmationPage({
   if (searchParams.redemption_id) {
     return (
       <Card className="mx-auto max-w-lg">
-        <CardHeader><CardTitle>Meal pass accepted</CardTitle></CardHeader>
+        <CardHeader className="border-l-4 border-emerald-700 bg-emerald-50 text-emerald-950">
+          <CardTitle>Meal pass accepted</CardTitle>
+        </CardHeader>
         <CardContent className="space-y-4">
           <Button asChild><Link href="/eatery/scan">Scan next pass</Link></Button>
         </CardContent>
@@ -37,7 +39,9 @@ export default async function EateryConfirmationPage({
 
   return (
     <Card className="mx-auto max-w-lg">
-      <CardHeader><CardTitle>Meal pass not accepted</CardTitle></CardHeader>
+      <CardHeader className="border-l-4 border-destructive bg-red-50 text-red-950">
+        <CardTitle>Meal pass not accepted</CardTitle>
+      </CardHeader>
       <CardContent className="space-y-4">
         <p role="status">{resultMessages[searchParams.result ?? ""] ?? resultMessages.unavailable}</p>
         <Button asChild><Link href="/eatery/scan">Scan another pass</Link></Button>

@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     secret = getCronSecret();
   } catch (error) {
     const message = error instanceof Error ? error.message : "Cron authorization is not configured.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 401 });
   }
   if (!validCronSecret(request, secret)) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });

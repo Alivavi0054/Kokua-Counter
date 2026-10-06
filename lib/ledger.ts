@@ -173,6 +173,15 @@ export async function redeemQr(params: {
   };
 }
 
+export async function recordQrScanFailure(eateryUserId: string): Promise<boolean> {
+  const { data, error } = await createAdminClient().rpc("record_qr_scan_failure", {
+    p_eatery_user_id: eateryUserId,
+    p_now: new Date().toISOString(),
+  });
+  if (error) throw error;
+  return data === true;
+}
+
 export async function getPoolBalanceCents(): Promise<number> {
   const { data, error } = await createAdminClient().rpc("get_pool_balance");
   if (error) throw error;

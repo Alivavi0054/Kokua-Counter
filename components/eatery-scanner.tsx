@@ -33,11 +33,7 @@ export function EateryScanner() {
             } catch {
               // The scanner may already have stopped during teardown.
             }
-            const token = parseQrPayload(decodedText);
-            if (!token) {
-              router.replace("/eatery/confirmation?result=invalid");
-              return;
-            }
+            const token = parseQrPayload(decodedText) ?? decodedText;
             try {
               const response = await fetch("/api/qr/redeem", {
                 method: "POST",
@@ -85,9 +81,9 @@ export function EateryScanner() {
 
   return (
     <div className="space-y-4">
-      <div id="eatery-qr-reader" className="min-h-64 overflow-hidden rounded-md border bg-black" aria-label="Meal pass camera scanner" />
+      <div id="eatery-qr-reader" className="min-h-[65vh] w-full overflow-hidden rounded-md border bg-black" aria-label="Meal pass camera scanner" />
       {cameraError ? <p className="text-sm text-destructive" role="alert">{cameraError}</p> : null}
-      {!scanning ? <Button variant="outline" onClick={restart}>Scan another pass</Button> : null}
+      {!scanning ? <Button size="lg" variant="outline" onClick={restart}>Scan next pass</Button> : null}
       <p className="text-sm text-muted-foreground">Center the student’s QR code in the camera frame. Scanned content is used only to verify the pass.</p>
     </div>
   );

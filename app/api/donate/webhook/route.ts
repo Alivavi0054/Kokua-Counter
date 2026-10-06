@@ -99,6 +99,7 @@ export async function POST(request: Request) {
   try {
     switch (event.type) {
       case "checkout.session.completed":
+      case "checkout.session.async_payment_succeeded":
         await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
         break;
       case "checkout.session.expired":

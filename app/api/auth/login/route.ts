@@ -3,7 +3,7 @@ import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 import { createClient } from "@/lib/supabase/server";
-import { isHawaiiEduEmail } from "@/lib/auth/roles";
+import { isHawaiiEduEmail, normalizeHawaiiEduEmail } from "@/lib/auth/roles";
 import { getAppUrl } from "@/lib/env";
 
 const bodySchema = z.object({
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     }
     const origin = getAppUrl("magic-link callback redirects");
     const { error } = await supabase.auth.signInWithOtp({
-      email: parsed.data.email.toLowerCase(),
+      email: normalizeHawaiiEduEmail(parsed.data.email),
       options: {
         emailRedirectTo: `${origin}/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ""}`,
         shouldCreateUser: true,

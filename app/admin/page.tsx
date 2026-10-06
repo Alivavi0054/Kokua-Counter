@@ -58,12 +58,14 @@ export default async function AdminPage() {
   const completedMealCount = redemptionsResult.count ?? 0;
   const activeEateryCount = eateriesResult.count ?? 0;
   const recentRedemptions = recentResult.data ?? [];
-  const recentEateryIds = [...new Set(recentRedemptions.map((item) => item.eatery_id))];
+  const recentEateryIds = Array.from(new Set(recentRedemptions.map((item) => item.eatery_id)));
   const { data: recentEateries, error: recentEateriesError } = recentEateryIds.length
     ? await admin.from("eateries").select("id, name").in("id", recentEateryIds)
     : { data: [], error: null };
   if (recentEateriesError) throw new Error("Could not load recent redemptions.");
-  const eateryNames = new Map((recentEateries ?? []).map((item) => [item.id, item.name]));
+  const eateryNames = new Map<string, string>(
+    (recentEateries ?? []).map((item) => [item.id, item.name] as const),
+  );
   const metrics = [
     { label: "Gross contributions", value: formatUsdFromCents(grossCents), detail: "Completed payments" },
     { label: "Total refunded", value: formatUsdFromCents(refundedCents), detail: "Refunds recorded by Stripe" },

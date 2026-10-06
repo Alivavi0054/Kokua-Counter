@@ -9,6 +9,7 @@ DECLARE
   v_result JSONB;
   v_refund_count INTEGER;
   v_test_now TIMESTAMPTZ := now();
+  v_refund_rejected BOOLEAN := FALSE;
   v_student UUID := 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1';
   v_eatery_user UUID;
   v_hash TEXT;
@@ -42,13 +43,13 @@ BEGIN
   -- $8 + meal = 0
   INSERT INTO public.contributions (id, amount_cents, currency, status)
   VALUES ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1', 800, 'usd', 'pending');
+  v_before := public.get_pool_balance();
   PERFORM public.record_credit(
     'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1',
     'cs_test_8_meal',
     'pi_test_8_meal'
   );
-  v_before := public.get_pool_balance();
-  IF v_before <> 800 THEN
+  IF public.get_pool_balance() - v_before <> 800 THEN
     RAISE EXCEPTION '$8 credit should be +800, got %', v_before;
   END IF;
 
@@ -63,7 +64,7 @@ BEGIN
   IF COALESCE((v_result ->> 'ok')::BOOLEAN, FALSE) IS NOT TRUE THEN
     RAISE EXCEPTION '$8 redeem failed: %', v_result;
   END IF;
-  IF public.get_pool_balance() <> 0 THEN
+  IF public.get_pool_balance() <> v_before THEN
     RAISE EXCEPTION '$8 + meal should be 0, got %', public.get_pool_balance();
   END IF;
 
@@ -180,6 +181,45 @@ BEGIN
   IF v_refund_count <> 1 THEN
     RAISE EXCEPTION 'duplicate refund webhook must insert exactly one refund entry, got %',
       v_refund_count;
+  END IF;
+
+  INSERT INTO public.contributions (id, amount_cents, currency, status)
+  VALUES ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb8', 2400, 'usd', 'pending');
+  PERFORM public.record_credit(
+    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb8', 'cs_test_partial_refund', 'pi_test_partial_refund'
+  );
+  v_before := public.get_pool_balance();
+  PERFORM public.record_refund(
+    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb8', 're_test_partial', 800
+  );
+  PERFORM public.record_refund(
+    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb8', 're_test_partial', 800
+  );
+  IF (SELECT refunded_amount_cents FROM public.contributions
+      WHERE id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb8') <> 800
+    OR public.get_pool_balance() - v_before <> -800 THEN
+    RAISE EXCEPTION 'partial refund and replay should debit exactly 800 cents';
+  END IF;
+
+  v_before := public.get_pool_balance();
+  PERFORM public.record_refund(
+    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb8', 're_test_partial_remainder', 1600
+  );
+  IF (SELECT status FROM public.contributions
+      WHERE id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb8') <> 'refunded'
+    OR public.get_pool_balance() - v_before <> -1600 THEN
+    RAISE EXCEPTION 'remaining refund should complete the full refund';
+  END IF;
+
+  BEGIN
+    PERFORM public.record_refund(
+      'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb8', 're_test_over_refund', 1
+    );
+  EXCEPTION WHEN SQLSTATE 'P0001' THEN
+    v_refund_rejected := TRUE;
+  END;
+  IF NOT v_refund_rejected THEN
+    RAISE EXCEPTION 'over-refund should be rejected';
   END IF;
 END;
 $$;
@@ -320,7 +360,7 @@ BEGIN
     RAISE EXCEPTION 'fourth same-day pass should be rejected: %', v_result;
   END IF;
 
-  v_now := date_trunc('day', now() AT TIME ZONE 'Pacific/Honolulu') AT TIME ZONE 'Pacific/Honolulu'
+  v_now := (date_trunc('day', now() AT TIME ZONE 'Pacific/Honolulu') AT TIME ZONE 'Pacific/Honolulu')
     + INTERVAL '1 day';
   v_result := public.create_qr_hold(
     v_pass_student,
@@ -334,6 +374,36 @@ BEGIN
     RAISE EXCEPTION 'pass generation limit did not reset on the next Honolulu day: %', v_result;
   END IF;
   PERFORM public.cancel_qr((v_result ->> 'qr_id')::UUID, v_pass_student);
+
+  v_pass_now := now() + INTERVAL '2 days';
+  v_result := public.create_qr_hold(
+    v_pass_student,
+    encode(extensions.digest('expired-cooldown-pass', 'sha256'), 'hex'),
+    v_pass_now + INTERVAL '15 minutes',
+    1,
+    3,
+    v_pass_now
+  );
+  IF v_result ->> 'ok' <> 'true' THEN
+    RAISE EXCEPTION 'expired cooldown test hold failed: %', v_result;
+  END IF;
+  v_qr := (v_result ->> 'qr_id')::UUID;
+  UPDATE public.qr_codes
+  SET status = 'expired', expires_at = now() + INTERVAL '30 seconds'
+  WHERE id = v_qr;
+  PERFORM public.release_expired_qr(v_qr);
+
+  v_result := public.create_qr_hold(
+    v_pass_student,
+    encode(extensions.digest('expired-cooldown-retry', 'sha256'), 'hex'),
+    now() + INTERVAL '15 minutes 45 seconds',
+    1,
+    3,
+    now() + INTERVAL '45 seconds'
+  );
+  IF v_result ->> 'error_code' <> 'cooldown' THEN
+    RAISE EXCEPTION 'expired pass cooldown should reject a new pass within 60 seconds: %', v_result;
+  END IF;
 END;
 $$;
 

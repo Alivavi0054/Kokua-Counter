@@ -29,11 +29,11 @@ export async function SiteHeader() {
 
   return (
     <header className="border-b bg-card/80 backdrop-blur">
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
+      <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
         <Link href={home} className="font-serif text-xl tracking-tight">
           Kōkua Counter
         </Link>
-        <nav className="flex items-center gap-2 text-sm">
+        <nav className="flex flex-wrap items-center gap-1 text-sm" aria-label="Main navigation">
           <Button variant="ghost" asChild>
             <Link href="/about">About</Link>
           </Button>

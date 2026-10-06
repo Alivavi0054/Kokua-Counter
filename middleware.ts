@@ -5,15 +5,18 @@ import { getSupabasePublicEnv } from "@/lib/env";
 export async function middleware(request: NextRequest) {
   const nonceBytes = new Uint8Array(16);
   crypto.getRandomValues(nonceBytes);
-  const nonce = btoa(String.fromCharCode(...nonceBytes));
+  const nonce = btoa(Array.from(nonceBytes, (byte) => String.fromCharCode(byte)).join(""));
   const developmentEval = process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : "";
+  const developmentConnections = process.env.NODE_ENV === "development"
+    ? " http://127.0.0.1:54321 ws://127.0.0.1:54321 http://localhost:54321 ws://localhost:54321 ws://localhost:3000"
+    : "";
   const contentSecurityPolicy = [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${developmentEval}`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
-    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com",
+    `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com${developmentConnections}`,
     "frame-src https://checkout.stripe.com",
     "worker-src 'self' blob:",
     "object-src 'none'",
@@ -25,12 +28,27 @@ export async function middleware(request: NextRequest) {
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("Content-Security-Policy", contentSecurityPolicy);
 
+  const addSecurityHeaders = (response: NextResponse) => {
+    response.headers.set("Content-Security-Policy", contentSecurityPolicy);
+    response.headers.set(
+      "Permissions-Policy",
+      request.nextUrl.pathname === "/eatery/scan"
+        ? "camera=(self), microphone=(), geolocation=()"
+        : "camera=(), microphone=(), geolocation=()",
+    );
+    return response;
+  };
+
   const methodChangesState = ["POST", "PUT", "PATCH", "DELETE"].includes(request.method);
   const isStripeWebhook = request.nextUrl.pathname === "/api/donate/webhook";
-  if (methodChangesState && !isStripeWebhook) {
+  const devLoginDisabled = request.nextUrl.pathname === "/api/auth/dev-login" &&
+    (process.env.NODE_ENV === "production" || process.env.ENABLE_DEV_LOGIN !== "true");
+  if (methodChangesState && !isStripeWebhook && !devLoginDisabled) {
     const origin = request.headers.get("origin");
     if (!origin || origin !== request.nextUrl.origin) {
-      return NextResponse.json({ error: "Cross-origin request rejected." }, { status: 403 });
+      return addSecurityHeaders(
+        NextResponse.json({ error: "Cross-origin request rejected." }, { status: 403 }),
+      );
     }
   }
 
@@ -77,11 +95,10 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
     url.searchParams.set("next", path);
-    return NextResponse.redirect(url);
+    return addSecurityHeaders(NextResponse.redirect(url));
   }
 
-  supabaseResponse.headers.set("Content-Security-Policy", contentSecurityPolicy);
-  return supabaseResponse;
+  return addSecurityHeaders(supabaseResponse);
 }
 
 export const config = {

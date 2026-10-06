@@ -4,9 +4,8 @@ async function pass<T>(label: string, callback: () => Promise<T>) {
   try {
     await callback();
     console.log(`PASS ${label}`);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.log(`FAIL ${label}: ${message}`);
+  } catch {
+    console.log(`FAIL ${label}`);
     process.exitCode = 1;
   }
 }
@@ -19,10 +18,21 @@ async function main() {
     }
   });
 
-  await pass("student generate", async () => {
-    // This is a smoke-test scaffold; the actual local flow creates a contribution and calls the service-role RPC.
-    // The script intentionally avoids database mutations in this static code pass.
-    console.log("student generate check requires a live local database and service-role setup");
+  await pass("protected QR generation", async () => {
+    const response = await fetch(`${appUrl}/api/qr/generate`, {
+      method: "POST",
+      headers: { Origin: appUrl },
+    });
+    if (response.status !== 401) {
+      throw new Error("Expected unauthenticated request to be rejected.");
+    }
+  });
+
+  await pass("cron authorization", async () => {
+    const response = await fetch(`${appUrl}/api/cron/expire-qrs`);
+    if (response.status !== 401) {
+      throw new Error("Expected missing cron authorization to be rejected.");
+    }
   });
 }
 

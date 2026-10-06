@@ -12,3 +12,11 @@ export function isHawaiiEduEmail(email: string): boolean {
   if (at < 0) return false;
   return normalized.slice(at + 1) === "hawaii.edu";
 }
+
+export function normalizeHawaiiEduEmail(email: string): string {
+  const normalized = email.trim().toLowerCase();
+  if (!isHawaiiEduEmail(normalized)) return normalized;
+  const at = normalized.lastIndexOf("@");
+  const mailbox = normalized.slice(0, at).split("+", 1)[0] ?? "";
+  return `${mailbox}@hawaii.edu`;
+}

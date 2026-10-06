@@ -34,6 +34,9 @@ export async function loadUser(): Promise<AppUser | null> {
   if (!profile || !isUserRole(profile.role) || !profile.is_active) {
     return null;
   }
+  if (profile.role === "student" && !user.email_confirmed_at) {
+    return null;
+  }
 
   return {
     id: user.id,

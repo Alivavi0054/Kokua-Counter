@@ -125,7 +125,6 @@ export type Database = {
           stripe_checkout_session_id: string | null;
           stripe_payment_intent_id: string | null;
           status: ContributionStatus;
-          donor_email: string | null;
           is_anonymous: boolean;
           refunded_amount_cents: number;
           created_at: string;
@@ -139,7 +138,6 @@ export type Database = {
           stripe_checkout_session_id?: string | null;
           stripe_payment_intent_id?: string | null;
           status?: ContributionStatus;
-          donor_email?: string | null;
           is_anonymous?: boolean;
           refunded_amount_cents?: number;
           created_at?: string;
@@ -152,7 +150,6 @@ export type Database = {
           stripe_checkout_session_id?: string | null;
           stripe_payment_intent_id?: string | null;
           status?: ContributionStatus;
-          donor_email?: string | null;
           is_anonymous?: boolean;
           refunded_amount_cents?: number;
           updated_at?: string;
@@ -364,6 +361,10 @@ export type Database = {
       create_student_profile: {
         Args: { p_user_id: string; p_display_name: string };
         Returns: Json;
+      };
+      record_qr_scan_failure: {
+        Args: { p_eatery_user_id: string; p_now?: string };
+        Returns: boolean;
       };
     };
   };

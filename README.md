@@ -11,6 +11,7 @@
 ## Getting it running
 
 1. Create a Supabase project.
+   - Enable email confirmations in Supabase Auth so student profiles are created only after the magic link is confirmed.
 2. Fill `.env.local` with:
    - `NEXT_PUBLIC_APP_URL` — app URL, usually `http://localhost:3000`
    - `NEXT_PUBLIC_SUPABASE_URL` — Project URL from Supabase Dashboard → Project URL
@@ -23,8 +24,9 @@
    - `STRIPE_WEBHOOK_SECRET` — output of `stripe listen --forward-to localhost:3000/api/donate/webhook`
    - `CRON_SECRET` — random secret for the cron endpoint
    - `MEAL_VALUE_CENTS=800`
-   - `ENABLE_DEV_LOGIN=false`
+   - `ENABLE_DEV_LOGIN=true` for local developer sign-in; keep false elsewhere
    - `SEED_ADMIN_PASSWORD`, `SEED_STUDENT_PASSWORD`, `SEED_EATERY_PASSWORD` — local seed passwords
+   - Optional daily limits: `MEALS_PER_DAY=1`, `PASSES_GENERATED_PER_DAY=3`, `EATERY_DAILY_LIMIT=200`
 3. Run `npm run db:setup`.
 4. Run `npm run db:seed`.
 5. Run `npm run dev`.
@@ -51,9 +53,13 @@ For local testing only, `npm run dev:credit` creates a pending test contribution
 
 Daily limits default to one redeemed meal, three generated passes per student, and 200 redemptions per eatery in Hawaiʻi time. Set `MEALS_PER_DAY`, `PASSES_GENERATED_PER_DAY`, and `EATERY_DAILY_LIMIT` only in server environment configuration; values are validated and are never accepted from the browser.
 
+The Supabase SQL seed intentionally creates no users or fixed-password accounts. `npm run db:seed` creates the local admin, student, and eatery accounts using the required seed password variables.
+
 ## Supabase
 
-The SQL schema, row-level security, and ledger enforcement live in the migration files in `supabase/migrations`. The service role client is used only for internal admin operations; authenticated app code reads through user-scoped clients. The `public_eateries` view is intentionally public and readable by anonymous users.
+The SQL schema, row-level security, and ledger enforcement live in the migration files in `supabase/migrations`. The service role client is used only for internal server operations; authenticated app code reads through user-scoped clients. The `public_eateries` view is intentionally public and readable by anonymous users. Eateries cannot select redemption rows or student IDs; the dashboard count is queried server-side after the eatery role is checked.
+
+After migrations and `npm run db:seed`, `npm run verify` runs the rollback-only accounting, daily-limit, cooldown, eatery-cap, scan-throttle, email-confirmation, alias, and refund scenarios. Use a disposable database only. After `npm run build`, `npm run check:client-secrets` scans `.next/static` for privileged-key markers.
 
 ## Stripe
 
@@ -92,12 +98,17 @@ These are intended for the local dev database only.
 - Camera scanning requires browser camera access and HTTPS or localhost.
 - Email alias prevention compares normalized `hawaii.edu` mailbox names (+tags removed), but cannot establish that separate unrelated mailboxes belong to different people.
 - The daily eatery limit is operationally configurable and is not a substitute for manual review of unusual redemption patterns.
+- Daily-limit and scan-throttle SQL scenarios have not been executed against a live Supabase database in this pass; run `npm run verify` against a disposable database before launch.
+- Scan-failure records contain eatery user IDs and timestamps for a ten-minute window; cron and scan traffic remove expired rows.
+- An eatery cap cannot detect collusion or meals served outside the scanner; operational review remains necessary.
+- A QR pass is a bearer code: someone holding a valid screenshot can redeem it before expiry. The eatery receives no student identity by design, so the app cannot check the presenter against a person.
+- Login, developer-login, and donation form keyboard order were exercised in a browser; screen-reader output and narrow-screen behavior still need human QA.
 - Security policies could not be checked against `SPEC.md` because that file is not present in the repository.
 - Privacy and terms pages are drafts and require legal review; their owner contact placeholder must be completed before public launch.
 
 ## Troubleshooting
 
-- Health 503: verify all env vars are present in `.env.local`, then check the database connection and the migration status.
+- Health 503: verify the Supabase URL, anon key, and service-role key in `.env.local`, then check the database connection and migration status.
 - Migration failure: run `npm run db:setup` again after checking the exact migration file listed in the error output.
 - Invalid API key: verify the correct Supabase and Stripe keys in `.env.local` and confirm the service role key is not the anon key.
 - Webhook signature errors: ensure `stripe listen` is pointed at the correct route and `STRIPE_WEBHOOK_SECRET` matches the printed `whsec_...` value.
@@ -105,7 +116,9 @@ These are intended for the local dev database only.
 
 ## Manual verification checklist
 
-- Run the accounting lifecycle SQL test against a disposable local database.
-- Replay the same Stripe refund event twice and confirm only one refund ledger row is created.
-- Open the same active QR in two tabs and confirm only one redemption succeeds.
-- Confirm the cron endpoint rejects a missing or incorrect secret.
+- Run `npm run verify` against a disposable local database and confirm daily reset, second-meal rejection, fourth-generation rejection, double-cancel idempotency, eatery cap, scan throttling, confirmed email, alias rejection, and partial/full refund assertions.
+- Complete one live Stripe test-mode checkout, compare the stored cents with `amount_total`, replay its completion/refund events, and confirm no duplicate ledger rows.
+- Open the same active QR in two eatery tabs and submit concurrently; exactly one redemption should succeed.
+- Confirm missing and incorrect cron authorization both return 401.
+- After the production build, run `npm run check:client-secrets`.
+- Keyboard-test the login, developer login, and donation forms, including their error and disabled states, on desktop and mobile widths.
