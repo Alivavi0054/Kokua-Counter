@@ -12,7 +12,7 @@ const serverSchema = publicSchema.extend({
   STRIPE_SECRET_KEY: z.string().min(1),
   STRIPE_WEBHOOK_SECRET: z.string().min(1),
   CRON_SECRET: z.string().min(1),
-  MEAL_VALUE_CENTS: z.coerce.number().int().positive(),
+  MEAL_VALUE_CENTS: z.coerce.number().int().refine((value) => value === 800),
 });
 
 function readPublic() {

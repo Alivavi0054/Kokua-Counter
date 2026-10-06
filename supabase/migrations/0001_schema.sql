@@ -63,7 +63,7 @@ CREATE TABLE public.contributions (
 CREATE TABLE public.qr_codes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   student_user_id UUID NOT NULL REFERENCES public.users (id),
-  token_hash TEXT NOT NULL UNIQUE,
+  token_hash TEXT NOT NULL UNIQUE CHECK (token_hash ~ '^[a-f0-9]{64}$'),
   meal_value_cents INTEGER NOT NULL DEFAULT 800 CHECK (meal_value_cents = 800),
   status public.qr_status NOT NULL DEFAULT 'active',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -130,10 +130,15 @@ CREATE INDEX pool_ledger_entry_type_created_at_idx
 CREATE INDEX qr_codes_token_hash_idx ON public.qr_codes (token_hash);
 CREATE INDEX qr_codes_status_idx ON public.qr_codes (status);
 CREATE INDEX qr_codes_expires_at_idx ON public.qr_codes (expires_at);
+CREATE INDEX qr_codes_token_status_expires_idx
+  ON public.qr_codes (token_hash, status, expires_at);
 CREATE INDEX redemptions_student_user_id_idx ON public.redemptions (student_user_id);
 CREATE INDEX redemptions_eatery_id_idx ON public.redemptions (eatery_id);
+CREATE INDEX redemptions_student_eatery_idx
+  ON public.redemptions (student_user_id, eatery_id);
 CREATE INDEX settlements_eatery_id_idx ON public.settlements (eatery_id);
 CREATE INDEX settlements_status_idx ON public.settlements (status);
+CREATE INDEX settlements_eatery_status_idx ON public.settlements (eatery_id, status);
 
 CREATE OR REPLACE FUNCTION public.set_updated_at()
 RETURNS TRIGGER

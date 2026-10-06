@@ -72,6 +72,14 @@ export async function POST(request: Request) {
     ? await supabase.from("users").select("role").eq("id", user.id).maybeSingle()
     : { data: null };
 
+  if (profile?.role === "student" && !isHawaiiEduEmail(parsed.data.email)) {
+    await supabase.auth.signOut();
+    return NextResponse.json(
+      { error: "Use a University of Hawaiʻi email ending in @hawaii.edu." },
+      { status: 403 },
+    );
+  }
+
   const redirect =
     next ??
     (profile?.role === "admin"

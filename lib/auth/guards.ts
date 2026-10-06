@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isUserRole, type UserRole } from "@/lib/auth/roles";
@@ -9,6 +10,10 @@ export type AppUser = {
   displayName: string;
   isActive: boolean;
 };
+
+export type ApiRoleResult =
+  | { ok: true; user: AppUser }
+  | { ok: false; response: NextResponse };
 
 export async function loadUser(): Promise<AppUser | null> {
   const supabase = createClient();
@@ -53,4 +58,21 @@ export async function requireRole(role: UserRole): Promise<AppUser> {
     redirect("/auth/login?error=unauthorized");
   }
   return user;
+}
+
+export async function requireApiRole(role: UserRole): Promise<ApiRoleResult> {
+  const user = await loadUser();
+  if (!user) {
+    return {
+      ok: false,
+      response: NextResponse.json({ error: "Sign in required." }, { status: 401 }),
+    };
+  }
+  if (user.role !== role) {
+    return {
+      ok: false,
+      response: NextResponse.json({ error: "Not permitted." }, { status: 403 }),
+    };
+  }
+  return { ok: true, user };
 }

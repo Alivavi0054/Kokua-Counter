@@ -7,23 +7,27 @@ import { recordCredit, recordRefund, recordRefundReversal } from "@/lib/ledger";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-async function markContributionFailed(sessionId: string) {
+async function markContributionFailed(session: Stripe.Checkout.Session) {
+  const contributionId = session.metadata?.contribution_id;
+  if (!contributionId) throw new Error("checkout_missing_contribution_id");
   const admin = createAdminClient();
-  await admin
+  const { error } = await admin
     .from("contributions")
     .update({ status: "failed" })
-    .eq("stripe_checkout_session_id", sessionId)
+    .eq("id", contributionId)
     .eq("status", "pending");
+  if (error) throw error;
 }
 
 async function contributionIdFromPaymentIntent(paymentIntentId: string | null) {
   if (!paymentIntentId) return null;
   const admin = createAdminClient();
-  const { data } = await admin
+  const { data, error } = await admin
     .from("contributions")
     .select("id")
     .eq("stripe_payment_intent_id", paymentIntentId)
     .maybeSingle();
+  if (error) throw error;
   return data?.id ?? null;
 }
 
@@ -78,9 +82,7 @@ export async function POST(request: Request) {
         break;
       case "checkout.session.expired":
       case "checkout.session.async_payment_failed":
-        await markContributionFailed(
-          (event.data.object as Stripe.Checkout.Session).id,
-        );
+        await markContributionFailed(event.data.object as Stripe.Checkout.Session);
         break;
       case "refund.created":
       case "refund.updated": {

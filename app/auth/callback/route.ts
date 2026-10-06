@@ -41,6 +41,11 @@ export async function GET(request: Request) {
     .eq("id", user.id)
     .maybeSingle();
 
+  if (profile?.role === "student" && !isHawaiiEduEmail(user.email)) {
+    await supabase.auth.signOut();
+    return NextResponse.redirect(`${origin}/auth/login?error=domain`);
+  }
+
   if (!profile) {
     if (!isHawaiiEduEmail(user.email)) {
       await supabase.auth.signOut();

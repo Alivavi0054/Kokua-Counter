@@ -1,11 +1,13 @@
 CREATE OR REPLACE FUNCTION public.get_pool_balance()
 RETURNS BIGINT
-LANGUAGE sql
-STABLE
+LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT COALESCE(SUM(amount_cents), 0)::BIGINT FROM public.pool_ledger;
+BEGIN
+  PERFORM pg_advisory_xact_lock(8242026);
+  RETURN COALESCE((SELECT SUM(amount_cents) FROM public.pool_ledger), 0)::BIGINT;
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION public.record_credit(
@@ -274,6 +276,10 @@ BEGIN
   FOR UPDATE;
 
   IF NOT FOUND OR v_student.role <> 'student' OR v_student.is_active IS NOT TRUE THEN
+    RETURN jsonb_build_object('ok', FALSE, 'error_code', 'not_eligible');
+  END IF;
+
+  IF p_expires_at <= now() OR p_expires_at > now() + INTERVAL '15 minutes' THEN
     RETURN jsonb_build_object('ok', FALSE, 'error_code', 'not_eligible');
   END IF;
 

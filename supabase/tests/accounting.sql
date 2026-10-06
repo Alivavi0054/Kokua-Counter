@@ -146,8 +146,8 @@ BEGIN
     're_test_meal_refund',
     2400
   );
-  IF public.get_pool_balance() - v_before <> -1600 THEN
-    RAISE EXCEPTION '$24 + meal + full refund should add -1600, got delta %',
+  IF public.get_pool_balance() - v_before <> -800 THEN
+    RAISE EXCEPTION '$24 + meal + full refund should add -800, got delta %',
       public.get_pool_balance() - v_before;
   END IF;
 

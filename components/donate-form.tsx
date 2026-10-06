@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { MEAL_VALUE_CENTS, PRESET_DONATION_CENTS } from "@/lib/constants";
+import {
+  MAX_DONATION_CENTS,
+  MEAL_VALUE_CENTS,
+  PRESET_DONATION_CENTS,
+} from "@/lib/constants";
 import { formatUsdFromCents, mealsFromCents } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -88,8 +92,10 @@ export function DonateForm() {
                 <Label htmlFor="custom-amount">Amount in dollars</Label>
                 <Input
                   id="custom-amount"
+                  type="number"
                   inputMode="decimal"
                   min={8}
+                  max={MAX_DONATION_CENTS / 100}
                   step="1"
                   value={customDollars}
                   onChange={(event) => setCustomDollars(event.target.value)}
