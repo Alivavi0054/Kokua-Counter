@@ -1,8 +1,15 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireRole } from "@/lib/auth/guards";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+
+export const metadata: Metadata = {
+  title: "Eatery counter",
+  description: "Today’s meal pass activity at your participating eatery.",
+};
 
 function hawaiiDayRange(now: Date) {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -30,7 +37,7 @@ export default async function EateryPage() {
   let acceptedCount = 0;
   if (eatery?.is_active) {
     const range = hawaiiDayRange(new Date());
-    const { count, error } = await supabase
+    const { count, error } = await createAdminClient()
       .from("redemptions")
       .select("id", { count: "exact", head: true })
       .eq("eatery_id", eatery.id)

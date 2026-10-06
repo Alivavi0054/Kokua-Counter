@@ -1,17 +1,22 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { Metadata } from "next";
 import { requireRole } from "@/lib/auth/guards";
 import { formatUsdFromCents } from "@/lib/utils";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { expireStaleQrs, getPoolBalanceCents } from "@/lib/ledger";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = {
+  title: "Admin overview",
+  description: "Current pool and meal activity for Kōkua Counter administrators.",
+};
 
 export default async function AdminPage() {
   await requireRole("admin");
   await expireStaleQrs();
 
   const admin = createAdminClient();
-  const [contributionsResult, activeQrsResult, redemptionsResult, eateriesResult, balanceCents] =
+  const [contributionsResult, activeQrsResult, redemptionsResult, eateriesResult, recentResult, balanceCents] =
     await Promise.all([
       admin
         .from("contributions")
@@ -29,12 +34,18 @@ export default async function AdminPage() {
         .from("eateries")
         .select("id", { count: "exact", head: true })
         .eq("is_active", true),
+      admin
+        .from("redemptions")
+        .select("id, eatery_id, amount_cents, redeemed_at")
+        .eq("status", "completed")
+        .order("redeemed_at", { ascending: false })
+        .limit(8),
       getPoolBalanceCents(),
     ]);
 
   if (
     contributionsResult.error || activeQrsResult.error || redemptionsResult.error ||
-    eateriesResult.error
+    eateriesResult.error || recentResult.error
   ) {
     throw new Error("Could not load admin metrics.");
   }
@@ -46,6 +57,13 @@ export default async function AdminPage() {
   const activeQrCount = activeQrsResult.count ?? 0;
   const completedMealCount = redemptionsResult.count ?? 0;
   const activeEateryCount = eateriesResult.count ?? 0;
+  const recentRedemptions = recentResult.data ?? [];
+  const recentEateryIds = [...new Set(recentRedemptions.map((item) => item.eatery_id))];
+  const { data: recentEateries, error: recentEateriesError } = recentEateryIds.length
+    ? await admin.from("eateries").select("id, name").in("id", recentEateryIds)
+    : { data: [], error: null };
+  if (recentEateriesError) throw new Error("Could not load recent redemptions.");
+  const eateryNames = new Map((recentEateries ?? []).map((item) => [item.id, item.name]));
   const metrics = [
     { label: "Gross contributions", value: formatUsdFromCents(grossCents), detail: "Completed payments" },
     { label: "Total refunded", value: formatUsdFromCents(refundedCents), detail: "Refunds recorded by Stripe" },
@@ -80,6 +98,29 @@ export default async function AdminPage() {
           </Card>
         ))}
       </div>
+      <section className="space-y-3">
+        <h2 className="font-serif text-2xl">Recent redemptions</h2>
+        {!recentRedemptions.length ? (
+          <p className="text-muted-foreground">No completed meals yet.</p>
+        ) : (
+          <div className="overflow-x-auto rounded-md border">
+            <table className="w-full min-w-[32rem] text-left text-sm">
+              <thead className="bg-muted text-muted-foreground">
+                <tr><th className="px-4 py-3 font-medium">Time</th><th className="px-4 py-3 font-medium">Eatery</th><th className="px-4 py-3 text-right font-medium">Amount</th></tr>
+              </thead>
+              <tbody className="divide-y">
+                {recentRedemptions.map((item) => (
+                  <tr key={item.id}>
+                    <td className="px-4 py-3">{new Date(item.redeemed_at).toLocaleString("en-US", { timeZone: "Pacific/Honolulu" })}</td>
+                    <td className="px-4 py-3">{eateryNames.get(item.eatery_id) ?? "Participating eatery"}</td>
+                    <td className="px-4 py-3 text-right">{formatUsdFromCents(item.amount_cents)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

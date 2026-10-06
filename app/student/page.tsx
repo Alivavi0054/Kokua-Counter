@@ -1,10 +1,16 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { StudentMealPass } from "@/components/student-meal-pass";
 import { Button } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth/guards";
 
+export const metadata: Metadata = {
+  title: "Student meals",
+  description: "View or create a single-use Kōkua Counter meal pass.",
+};
+
 export default async function StudentPage() {
-  const user = await requireRole("student");
+  await requireRole("student");
 
   return (
     <div className="mx-auto max-w-xl space-y-8">
@@ -13,7 +19,6 @@ export default async function StudentPage() {
         <h1 className="font-serif text-4xl">Ready for a meal?</h1>
         <p className="text-muted-foreground">Use your single-use meal pass at any participating eatery.</p>
       </div>
-      <p>Kia ora, {user.displayName}.</p>
       <StudentMealPass />
       <Button variant="outline" asChild><Link href="/student/history">View history</Link></Button>
     </div>

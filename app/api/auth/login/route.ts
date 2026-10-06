@@ -4,7 +4,7 @@ import { z } from "zod";
 export const dynamic = "force-dynamic";
 import { createClient } from "@/lib/supabase/server";
 import { isHawaiiEduEmail } from "@/lib/auth/roles";
-import { getServerEnv } from "@/lib/env";
+import { getAppUrl } from "@/lib/env";
 
 const bodySchema = z.object({
   email: z.string().email(),
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    const origin = getServerEnv().NEXT_PUBLIC_APP_URL;
+    const origin = getAppUrl("magic-link callback redirects");
     const { error } = await supabase.auth.signInWithOtp({
       email: parsed.data.email.toLowerCase(),
       options: {

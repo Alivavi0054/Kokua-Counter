@@ -5,8 +5,17 @@ import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { QR_TTL_MS } from "@/lib/public-constants";
 
 type PassStatus = "active" | "redeemed" | "expired" | "cancelled";
+
+type StoredPass = {
+  token: string;
+  qrId: string;
+  expiresAt: string;
+};
+
+const SESSION_KEY = "kokua-counter-student-pass";
 
 export function StudentMealPass() {
   const [qrId, setQrId] = useState<string | null>(null);
@@ -19,6 +28,21 @@ export function StudentMealPass() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [requested, setRequested] = useState(false);
+
+  function persistPass(nextToken: string, nextQrId: string, nextExpiresAt: string) {
+    if (typeof window === "undefined") return;
+    const payload: StoredPass = {
+      token: nextToken,
+      qrId: nextQrId,
+      expiresAt: nextExpiresAt,
+    };
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(payload));
+  }
+
+  function clearPersistedPass() {
+    if (typeof window === "undefined") return;
+    sessionStorage.removeItem(SESSION_KEY);
+  }
 
   async function createPass() {
     setLoading(true);
@@ -38,13 +62,80 @@ export function StudentMealPass() {
       setToken(payload.token);
       setQrId(payload.qr_id);
       setExpiresAt(payload.expires_at);
+      setStatus("active");
       setRequested(true);
+      persistPass(payload.token, payload.qr_id, payload.expires_at);
     } catch {
       setError("Could not create a meal pass.");
     } finally {
       setLoading(false);
     }
   }
+
+  async function replacePass() {
+    if (!qrId || status !== "active") {
+      clearPersistedPass();
+      setToken(null);
+      setQrId(null);
+      setExpiresAt(null);
+      setStatus("cancelled");
+      setRequested(false);
+      await createPass();
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/qr/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ qr_id: qrId }),
+      });
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        setError(payload.error ?? "Could not cancel the current pass.");
+        return;
+      }
+      clearPersistedPass();
+      setToken(null);
+      setQrId(null);
+      setExpiresAt(null);
+      setStatus("cancelled");
+      setRequested(false);
+      setEateryName(null);
+      setRedeemedAt(null);
+      await createPass();
+    } catch {
+      setError("Could not get a new meal pass.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw) as Partial<StoredPass>;
+      if (!parsed.token || !parsed.qrId || !parsed.expiresAt) {
+        clearPersistedPass();
+        return;
+      }
+      if (Date.parse(parsed.expiresAt) <= Date.now()) {
+        clearPersistedPass();
+        return;
+      }
+      setToken(parsed.token);
+      setQrId(parsed.qrId);
+      setExpiresAt(parsed.expiresAt);
+      setStatus("active");
+      setRequested(true);
+    } catch {
+      clearPersistedPass();
+    }
+  }, []);
 
   useEffect(() => {
     if (!expiresAt || status !== "active") return;
@@ -87,7 +178,22 @@ export function StudentMealPass() {
     };
   }, [qrId, status]);
 
+  useEffect(() => {
+    if (status === "active" && token && qrId && expiresAt) {
+      persistPass(token, qrId, expiresAt);
+      return;
+    }
+    clearPersistedPass();
+  }, [token, qrId, expiresAt, status]);
+
   const countdown = `${Math.floor(remainingSeconds / 60)}:${String(remainingSeconds % 60).padStart(2, "0")}`;
+  const expiresAtHawaii = expiresAt
+    ? new Intl.DateTimeFormat("en-US", {
+        timeZone: "Pacific/Honolulu",
+        hour: "numeric",
+        minute: "2-digit",
+      }).format(new Date(expiresAt))
+    : "";
 
   if (loading) {
     return <p className="py-12 text-center text-muted-foreground" role="status">Preparing your meal pass…</p>;
@@ -99,7 +205,7 @@ export function StudentMealPass() {
         <CardHeader><CardTitle>Ready for a meal?</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <p className="text-muted-foreground">Create a single-use meal pass to show at a participating eatery.</p>
-          <Button onClick={createPass}>Get meal pass</Button>
+          <Button onClick={() => void createPass()}>Get meal pass</Button>
         </CardContent>
       </Card>
     );
@@ -136,7 +242,7 @@ export function StudentMealPass() {
         <CardHeader><CardTitle>Meal pass ended</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <p>This pass is no longer active. You can request another one when eligible.</p>
-          <Button asChild><Link href="/student">Back to student home</Link></Button>
+          <Button onClick={() => void replacePass()}>Get a new pass</Button>
         </CardContent>
       </Card>
     );
@@ -152,9 +258,19 @@ export function StudentMealPass() {
         <div className="mx-auto w-fit rounded-md bg-white p-3">
           <QRCodeSVG value={token} size={280} level="Q" className="h-auto max-w-full" />
         </div>
-        <p className="font-medium" aria-live="polite">Expires in {countdown}</p>
-        <p className="text-sm text-muted-foreground">Valid until {new Date(expiresAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}. Ask the eatery team to scan this code.</p>
-        <p className="text-xs text-muted-foreground">Keep this screen open. For your security, the code cannot be reissued.</p>
+        <div
+          className="mx-auto grid size-28 place-items-center rounded-full p-2"
+          style={{ background: `conic-gradient(var(--coral) ${Math.min(remainingSeconds / (QR_TTL_MS / 1000), 1) * 360}deg, var(--sand) 0deg)` }}
+          role="timer"
+          aria-label={`Pass expires in ${countdown}`}
+        >
+          <div className="grid size-full place-items-center rounded-full bg-background font-mono text-2xl font-semibold" aria-live="polite">
+            {countdown}
+          </div>
+        </div>
+        <p className="font-medium">Pass expires at {expiresAtHawaii} Hawaiʻi time.</p>
+        <p className="text-sm text-muted-foreground">Ask the eatery team to scan this code. Your active pass is saved for this browser session.</p>
+        <Button variant="outline" onClick={() => void replacePass()}>Get a new pass</Button>
       </CardContent>
     </Card>
   );

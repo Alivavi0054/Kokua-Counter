@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { isHawaiiEduEmail } from "@/lib/auth/roles";
-import { getServerEnv } from "@/lib/env";
+import { getAppUrl } from "@/lib/env";
 
 function safeNext(path: string | null) {
   if (!path || !path.startsWith("/") || path.startsWith("//")) return null;
@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const next = safeNext(url.searchParams.get("next"));
-  const origin = getServerEnv().NEXT_PUBLIC_APP_URL;
+  const origin = getAppUrl("authentication callback redirects");
   const supabase = createClient();
 
   if (!code) {
@@ -29,9 +29,9 @@ export async function GET(request: Request) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user?.email) {
+  if (!user?.email || !user.email_confirmed_at) {
     await supabase.auth.signOut();
-    return NextResponse.redirect(`${origin}/auth/login?error=unauthorized`);
+    return NextResponse.redirect(`${origin}/auth/login?error=unverified`);
   }
 
   const admin = createAdminClient();
@@ -52,19 +52,19 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${origin}/auth/login?error=domain`);
     }
 
-    const localPart = user.email.split("@")[0] ?? "Student";
-    const { error: insertError } = await admin.from("users").insert({
-      id: user.id,
-      role: "student",
-      display_name: localPart,
-      public_alias: localPart,
-      verified_school_domain: "hawaii.edu",
-      is_active: true,
+    const { data: profileResult, error: profileCreateError } = await admin.rpc("create_student_profile", {
+      p_user_id: user.id,
+      p_display_name: "Student",
     });
 
-    if (insertError) {
+    const profileStatus = profileResult && typeof profileResult === "object" && !Array.isArray(profileResult)
+      ? profileResult as { ok?: boolean; error_code?: string }
+      : null;
+
+    if (profileCreateError || profileStatus?.ok !== true) {
       await supabase.auth.signOut();
-      return NextResponse.redirect(`${origin}/auth/login?error=unauthorized`);
+      const error = profileStatus?.error_code === "student_email_already_used" ? "email-used" : "unauthorized";
+      return NextResponse.redirect(`${origin}/auth/login?error=${error}`);
     }
 
     return NextResponse.redirect(`${origin}${next ?? "/student"}`);

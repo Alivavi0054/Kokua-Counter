@@ -1,7 +1,12 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { Button } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = {
+  title: "Checkout canceled",
+  description: "Your Kōkua Counter checkout was canceled.",
+};
 
 export default function DonateCanceledPage() {
   return (

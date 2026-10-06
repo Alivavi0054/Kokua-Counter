@@ -60,8 +60,12 @@ export async function SiteHeader() {
 export function SiteFooter() {
   return (
     <footer className="mt-auto border-t">
-      <div className="mx-auto max-w-5xl px-4 py-6 text-sm text-muted-foreground">
-        Meal credits are shared across participating eateries in Hawaiʻi.
+      <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-4 py-6 text-sm text-muted-foreground">
+        <p>Meal credits are shared across participating eateries in Hawaiʻi.</p>
+        <nav aria-label="Legal" className="flex gap-4">
+          <Link href="/privacy" className="underline-offset-4 hover:underline">Privacy</Link>
+          <Link href="/terms" className="underline-offset-4 hover:underline">Terms</Link>
+        </nav>
       </div>
     </footer>
   );

@@ -17,6 +17,8 @@ const failureMessages = {
   already_used: "This meal pass has already been used.",
   expired: "This meal pass has expired.",
   unavailable: "Redemption is unavailable for this eatery right now.",
+  eatery_limit: "This eatery has reached its daily pass limit. Please contact the team for next steps.",
+  try_later: "There have been too many unsuccessful scans. Please wait before trying again.",
 } as const;
 
 export async function POST(request: Request) {
@@ -48,12 +50,10 @@ export async function POST(request: Request) {
       return NextResponse.json({
         error_code: result.error_code,
         error: failureMessages[result.error_code],
-      }, { status: result.error_code === "unavailable" ? 503 : 409 });
+      }, { status: result.error_code === "unavailable" || result.error_code === "eatery_limit" ? 503 : 409 });
     }
     return NextResponse.json({
       redemption_id: result.redemption_id,
-      eatery_name: result.eatery_name,
-      redeemed_at: result.redeemed_at,
     });
   } catch {
     return NextResponse.json({ error: "Could not verify this meal pass." }, { status: 500 });

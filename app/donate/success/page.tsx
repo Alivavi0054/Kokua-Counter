@@ -1,7 +1,12 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { Button } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = {
+  title: "Checkout status",
+  description: "Checkout status for a Kōkua Counter contribution.",
+};
 
 export default function DonateSuccessPage() {
   return (

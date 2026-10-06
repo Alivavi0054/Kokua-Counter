@@ -1,7 +1,12 @@
 import { Suspense } from "react";
+import type { Metadata } from "next";
 import { LoginForm } from "@/components/login-form";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = {
+  title: "Sign in",
+  description: "Sign in to Kōkua Counter.",
+};
 
 export default function LoginPage() {
   return (

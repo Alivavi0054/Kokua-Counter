@@ -38,6 +38,16 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   if (!contributionId || !paymentIntentId) {
     throw new Error("checkout_missing_ids");
   }
+  const admin = createAdminClient();
+  const { data: contribution, error } = await admin
+    .from("contributions")
+    .select("amount_cents, currency")
+    .eq("id", contributionId)
+    .maybeSingle();
+  if (error || !contribution) throw new Error("checkout_contribution_not_found");
+  if (session.amount_total !== contribution.amount_cents || session.currency?.toLowerCase() !== contribution.currency) {
+    throw new Error("checkout_amount_mismatch");
+  }
   await recordCredit({
     contributionId,
     checkoutSessionId: session.id,
@@ -67,11 +77,22 @@ async function handleRefund(refund: Stripe.Refund) {
 export async function POST(request: Request) {
   const rawBody = await request.text();
   const signature = request.headers.get("stripe-signature");
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
+
+  if (!webhookSecret) {
+    return NextResponse.json(
+      { error: "Missing STRIPE_WEBHOOK_SECRET; required for Stripe webhook verification." },
+      { status: 500 },
+    );
+  }
 
   let event: Stripe.Event;
   try {
-    event = constructStripeEvent(rawBody, signature);
-  } catch {
+    event = constructStripeEvent(rawBody, signature, webhookSecret);
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("Missing ")) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
     return NextResponse.json({ error: "Invalid signature." }, { status: 400 });
   }
 

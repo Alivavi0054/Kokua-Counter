@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { MAX_DONATION_CENTS, MEAL_VALUE_CENTS } from "@/lib/constants";
-import { getServerEnv } from "@/lib/env";
+import { getAppUrl } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe/client";
@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const appUrl = getServerEnv().NEXT_PUBLIC_APP_URL;
+  const appUrl = getAppUrl("donation checkout redirects");
   let session;
   try {
     session = await getStripe().checkout.sessions.create({
@@ -96,12 +96,15 @@ export async function POST(request: Request) {
         },
       ],
     });
-  } catch {
+  } catch (error) {
     await admin
       .from("contributions")
       .update({ status: "failed" })
       .eq("id", contribution.id)
       .eq("status", "pending");
+    if (error instanceof Error && error.message.startsWith("Missing ")) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
     return NextResponse.json({ error: "Could not start checkout." }, { status: 502 });
   }
 

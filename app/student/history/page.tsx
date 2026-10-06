@@ -1,6 +1,12 @@
+import type { Metadata } from "next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireRole } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
+
+export const metadata: Metadata = {
+  title: "Meal pass history",
+  description: "Review your Kōkua Counter meal pass history.",
+};
 
 export default async function StudentHistoryPage() {
   const user = await requireRole("student");

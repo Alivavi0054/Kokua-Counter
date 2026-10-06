@@ -27,11 +27,17 @@ export async function POST() {
     });
     if (!result.ok) {
       const message =
-        result.error_code === "already_active"
-          ? "An active pass already exists. It cannot be reissued; wait for it to expire."
-          : result.error_code === "insufficient_pool"
-            ? "Meal passes are temporarily unavailable. Please check back soon."
-            : "This account cannot request a meal pass.";
+        result.error_code === "active_pass_exists"
+          ? "You already have an active meal pass. Use it or wait for it to expire."
+          : result.error_code === "daily_limit_reached"
+            ? "You've already used today's meal pass. A new one will be available tomorrow."
+            : result.error_code === "too_many_attempts"
+              ? "You've reached today's pass limit. Please try again tomorrow."
+              : result.error_code === "cooldown"
+                ? "Please wait a minute before requesting another pass."
+                : result.error_code === "pool_unavailable"
+                  ? "Meal passes aren't available right now. Please try again later."
+                  : "This account can't request a meal pass right now.";
       return NextResponse.json({ error: message }, { status: 409 });
     }
     return NextResponse.json({

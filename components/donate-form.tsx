@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import {
   MAX_DONATION_CENTS,
   MEAL_VALUE_CENTS,
   PRESET_DONATION_CENTS,
-} from "@/lib/constants";
+} from "@/lib/public-constants";
 import { formatUsdFromCents, mealsFromCents } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,7 +25,7 @@ export function DonateForm() {
       ? Math.round(Number.parseFloat(customDollars || "0") * 100)
       : preset;
 
-  async function onSubmit(event: React.FormEvent) {
+  async function onSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
     setPending(true);
@@ -73,9 +73,9 @@ export function DonateForm() {
                   variant={preset === cents ? "default" : "outline"}
                   onClick={() => setPreset(cents)}
                 >
-                  {formatUsdFromCents(cents)}
-                  <span className="sr-only">
-                    {mealsFromCents(cents)} meals
+                  <span className="grid gap-1">
+                    <span>{formatUsdFromCents(cents)}</span>
+                    <span className="text-xs font-normal">{mealsFromCents(cents)} meal{mealsFromCents(cents) === 1 ? "" : "s"}</span>
                   </span>
                 </Button>
               ))}

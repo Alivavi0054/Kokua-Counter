@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
-import { getServerEnv } from "@/lib/env";
+import { getCronSecret } from "@/lib/env";
 import { expireStaleQrs } from "@/lib/ledger";
 
 export const runtime = "nodejs";
@@ -16,8 +16,14 @@ function validCronSecret(request: Request, secret: string) {
 }
 
 export async function GET(request: Request) {
-  const { CRON_SECRET } = getServerEnv();
-  if (!validCronSecret(request, CRON_SECRET)) {
+  let secret: string;
+  try {
+    secret = getCronSecret();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Cron authorization is not configured.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+  if (!validCronSecret(request, secret)) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
   try {

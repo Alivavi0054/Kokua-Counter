@@ -1,41 +1,47 @@
 import { z } from "zod";
 
-const publicSchema = z.object({
-  NEXT_PUBLIC_APP_URL: z.string().url(),
-  NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
-  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().min(1),
-});
+export function requireEnv(name: string, feature: string): string {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    throw new Error(`Missing ${name}; required for ${feature}. Add it to .env.local.`);
+  }
+  return value;
+}
 
-const serverSchema = publicSchema.extend({
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
-  STRIPE_SECRET_KEY: z.string().min(1),
-  STRIPE_WEBHOOK_SECRET: z.string().min(1),
-  CRON_SECRET: z.string().min(1),
-  MEAL_VALUE_CENTS: z.coerce.number().int().refine((value) => value === 800),
-});
+function requireUrl(name: string, feature: string): string {
+  const value = requireEnv(name, feature);
+  if (!z.string().url().safeParse(value).success) {
+    throw new Error(`${name} must be a valid URL for ${feature}.`);
+  }
+  return value;
+}
 
-function readPublic() {
+export function getSupabasePublicEnv(feature: string) {
   return {
-    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
-    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:
-      process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+    NEXT_PUBLIC_SUPABASE_URL: requireUrl("NEXT_PUBLIC_SUPABASE_URL", feature),
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", feature),
   };
 }
 
-export function getPublicEnv() {
-  return publicSchema.parse(readPublic());
+export function getSupabaseAdminEnv(feature: string) {
+  return {
+    NEXT_PUBLIC_SUPABASE_URL: requireUrl("NEXT_PUBLIC_SUPABASE_URL", feature),
+    SUPABASE_SERVICE_ROLE_KEY: requireEnv("SUPABASE_SERVICE_ROLE_KEY", feature),
+  };
 }
 
-export function getServerEnv() {
-  return serverSchema.parse({
-    ...readPublic(),
-    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
-    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
-    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
-    CRON_SECRET: process.env.CRON_SECRET,
-    MEAL_VALUE_CENTS: process.env.MEAL_VALUE_CENTS,
-  });
+export function getAppUrl(feature: string): string {
+  return requireUrl("NEXT_PUBLIC_APP_URL", feature);
+}
+
+export function getStripeSecretKey(): string {
+  return requireEnv("STRIPE_SECRET_KEY", "Stripe API operations");
+}
+
+export function getCronSecret(): string {
+  return requireEnv("CRON_SECRET", "QR expiry cron authorization");
+}
+
+export function isDevLoginEnabled(): boolean {
+  return process.env.NODE_ENV !== "production" && process.env.ENABLE_DEV_LOGIN === "true";
 }

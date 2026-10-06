@@ -182,6 +182,61 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.cancel_qr(
+  p_qr_id UUID,
+  p_student_user_id UUID
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_qr public.qr_codes%ROWTYPE;
+BEGIN
+  PERFORM pg_advisory_xact_lock(8242026);
+
+  SELECT * INTO v_qr
+  FROM public.qr_codes
+  WHERE id = p_qr_id
+    AND student_user_id = p_student_user_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('ok', FALSE, 'error_code', 'not_found');
+  END IF;
+
+  IF v_qr.status = 'cancelled' THEN
+    RETURN jsonb_build_object('ok', TRUE, 'status', 'cancelled');
+  END IF;
+
+  IF v_qr.status IN ('redeemed', 'expired') THEN
+    RETURN jsonb_build_object('ok', FALSE, 'error_code', 'unavailable');
+  END IF;
+
+  UPDATE public.qr_codes
+  SET status = 'cancelled', cancelled_at = now()
+  WHERE id = p_qr_id;
+
+  INSERT INTO public.pool_ledger (
+    entry_type,
+    amount_cents,
+    qr_code_id,
+    reference_key,
+    metadata
+  ) VALUES (
+    'release',
+    800,
+    p_qr_id,
+    'release:' || p_qr_id::TEXT,
+    jsonb_build_object('reason', 'cancelled')
+  )
+  ON CONFLICT (reference_key) WHERE reference_key IS NOT NULL DO NOTHING;
+
+  RETURN jsonb_build_object('ok', TRUE, 'status', 'cancelled');
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION public.release_expired_qr(p_qr_id UUID)
 RETURNS VOID
 LANGUAGE plpgsql
@@ -470,6 +525,7 @@ REVOKE ALL ON FUNCTION public.get_pool_balance() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.record_credit(UUID, TEXT, TEXT) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.record_refund(UUID, TEXT, BIGINT) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.record_refund_reversal(TEXT) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.cancel_qr(UUID, UUID) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.release_expired_qr(UUID) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.expire_stale_qrs() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.create_qr_hold(UUID, TEXT, TIMESTAMPTZ) FROM PUBLIC;
@@ -479,6 +535,7 @@ REVOKE EXECUTE ON FUNCTION public.get_pool_balance() FROM anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.record_credit(UUID, TEXT, TEXT) FROM anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.record_refund(UUID, TEXT, BIGINT) FROM anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.record_refund_reversal(TEXT) FROM anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.cancel_qr(UUID, UUID) FROM anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.release_expired_qr(UUID) FROM anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.expire_stale_qrs() FROM anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.create_qr_hold(UUID, TEXT, TIMESTAMPTZ) FROM anon, authenticated;
@@ -488,6 +545,7 @@ GRANT EXECUTE ON FUNCTION public.get_pool_balance() TO service_role;
 GRANT EXECUTE ON FUNCTION public.record_credit(UUID, TEXT, TEXT) TO service_role;
 GRANT EXECUTE ON FUNCTION public.record_refund(UUID, TEXT, BIGINT) TO service_role;
 GRANT EXECUTE ON FUNCTION public.record_refund_reversal(TEXT) TO service_role;
+GRANT EXECUTE ON FUNCTION public.cancel_qr(UUID, UUID) TO service_role;
 GRANT EXECUTE ON FUNCTION public.release_expired_qr(UUID) TO service_role;
 GRANT EXECUTE ON FUNCTION public.expire_stale_qrs() TO service_role;
 GRANT EXECUTE ON FUNCTION public.create_qr_hold(UUID, TEXT, TIMESTAMPTZ) TO service_role;

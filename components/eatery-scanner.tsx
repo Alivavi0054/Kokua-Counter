@@ -51,7 +51,7 @@ export function EateryScanner() {
               if (response.ok && payload.redemption_id) {
                 router.replace(`/eatery/confirmation?redemption_id=${encodeURIComponent(payload.redemption_id)}`);
               } else {
-                const safeCode = ["invalid", "already_used", "expired", "unavailable"].includes(payload.error_code ?? "")
+                const safeCode = ["invalid", "already_used", "expired", "unavailable", "eatery_limit", "try_later"].includes(payload.error_code ?? "")
                   ? payload.error_code
                   : "unavailable";
                 router.replace(`/eatery/confirmation?result=${safeCode}`);

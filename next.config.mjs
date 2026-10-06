@@ -11,7 +11,7 @@ const nextConfig = {
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           {
             key: "Permissions-Policy",
-            value: "camera=(self), microphone=(), geolocation=()",
+            value: "camera=(), microphone=(), geolocation=()",
           },
           {
             key: "Strict-Transport-Security",
@@ -21,6 +21,12 @@ const nextConfig = {
             key: "X-DNS-Prefetch-Control",
             value: "off",
           },
+        ],
+      },
+      {
+        source: "/eatery/scan",
+        headers: [
+          { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=()" },
         ],
       },
     ];

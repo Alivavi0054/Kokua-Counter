@@ -18,6 +18,10 @@ export function LoginForm() {
       ? "That account cannot open this page."
       : errorParam === "domain"
         ? "Use a University of Hawaiʻi email ending in @hawaii.edu."
+        : errorParam === "unverified"
+          ? "Confirm your email from the sign-in link before continuing."
+          : errorParam === "email-used"
+            ? "That email is already linked to a student account. Sign in with the original address."
         : null,
   );
   const [pending, setPending] = useState(false);

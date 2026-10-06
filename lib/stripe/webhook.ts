@@ -1,11 +1,11 @@
 import "server-only";
 import Stripe from "stripe";
 import { getStripe } from "@/lib/stripe/client";
-import { getServerEnv } from "@/lib/env";
 
 export function constructStripeEvent(
   rawBody: string,
   signature: string | null,
+  webhookSecret: string,
 ): Stripe.Event {
   if (!signature) {
     throw new Error("missing_stripe_signature");
@@ -13,7 +13,7 @@ export function constructStripeEvent(
   return getStripe().webhooks.constructEvent(
     rawBody,
     signature,
-    getServerEnv().STRIPE_WEBHOOK_SECRET,
+    webhookSecret,
   );
 }
 

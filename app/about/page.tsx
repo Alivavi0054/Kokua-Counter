@@ -1,4 +1,10 @@
+import type { Metadata } from "next";
+
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = {
+  title: "About",
+  description: "How Kōkua Counter shares meal credits across Hawaiʻi eateries.",
+};
 
 export default function AboutPage() {
   return (

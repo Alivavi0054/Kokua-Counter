@@ -22,6 +22,22 @@ export type PoolEntryType =
 export type Database = {
   public: {
     Tables: {
+      _migrations_applied: {
+        Row: {
+          id: number;
+          file_name: string;
+          applied_at: string;
+        };
+        Insert: {
+          file_name: string;
+          applied_at?: string;
+        };
+        Update: {
+          file_name?: string;
+          applied_at?: string;
+        };
+        Relationships: [];
+      };
       users: {
         Row: {
           id: string;
@@ -48,8 +64,14 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          role?: UserRole;
           display_name?: string;
           public_alias?: string | null;
+          verified_school_domain?: string | null;
+          voucher_code_hash?: string | null;
+          voucher_region?: string | null;
+          is_active?: boolean;
+          updated_at?: string;
         };
         Relationships: [];
       };
@@ -77,10 +99,19 @@ export type Database = {
           contact_email: string;
           stripe_connect_account_id?: string | null;
           is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
         };
         Update: {
+          owner_user_id?: string;
           name?: string;
+          slug?: string;
           address?: string;
+          island?: string;
+          contact_email?: string;
+          stripe_connect_account_id?: string | null;
+          is_active?: boolean;
+          updated_at?: string;
         };
         Relationships: [];
       };
@@ -111,12 +142,20 @@ export type Database = {
           donor_email?: string | null;
           is_anonymous?: boolean;
           refunded_amount_cents?: number;
+          created_at?: string;
+          updated_at?: string;
         };
         Update: {
+          donor_user_id?: string | null;
+          amount_cents?: number;
+          currency?: "usd";
           stripe_checkout_session_id?: string | null;
           stripe_payment_intent_id?: string | null;
           status?: ContributionStatus;
+          donor_email?: string | null;
+          is_anonymous?: boolean;
           refunded_amount_cents?: number;
+          updated_at?: string;
         };
         Relationships: [];
       };
@@ -140,6 +179,7 @@ export type Database = {
           redemption_id?: string | null;
           reference_key?: string | null;
           metadata?: Json | null;
+          created_at?: string;
         };
         Update: Record<string, never>;
         Relationships: [];
@@ -157,14 +197,22 @@ export type Database = {
           cancelled_at: string | null;
         };
         Insert: {
+          id?: string;
           student_user_id: string;
           token_hash: string;
           meal_value_cents?: number;
           status?: QrStatus;
+          created_at?: string;
           expires_at: string;
+          redeemed_at?: string | null;
+          cancelled_at?: string | null;
         };
         Update: {
+          student_user_id?: string;
+          token_hash?: string;
+          meal_value_cents?: number;
           status?: QrStatus;
+          expires_at?: string;
           redeemed_at?: string | null;
           cancelled_at?: string | null;
         };
@@ -183,16 +231,25 @@ export type Database = {
           metadata: Json | null;
         };
         Insert: {
+          id?: string;
           qr_code_id: string;
           student_user_id: string;
           eatery_id: string;
           amount_cents?: number;
           status?: RedemptionStatus;
+          redeemed_at?: string;
+          reversed_at?: string | null;
           metadata?: Json | null;
         };
         Update: {
+          qr_code_id?: string;
+          student_user_id?: string;
+          eatery_id?: string;
+          amount_cents?: number;
           status?: RedemptionStatus;
+          redeemed_at?: string;
           reversed_at?: string | null;
+          metadata?: Json | null;
         };
         Relationships: [];
       };
@@ -210,6 +267,7 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          id?: string;
           eatery_id: string;
           amount_cents: number;
           period_start: string;
@@ -217,11 +275,18 @@ export type Database = {
           stripe_transfer_id?: string | null;
           stripe_payout_id?: string | null;
           status?: SettlementStatus;
+          created_at?: string;
+          updated_at?: string;
         };
         Update: {
-          status?: SettlementStatus;
+          eatery_id?: string;
+          amount_cents?: number;
+          period_start?: string;
+          period_end?: string;
           stripe_transfer_id?: string | null;
           stripe_payout_id?: string | null;
+          status?: SettlementStatus;
+          updated_at?: string;
         };
         Relationships: [];
       };
@@ -268,6 +333,9 @@ export type Database = {
           p_student_id: string;
           p_token_hash: string;
           p_expires_at: string;
+          p_meals_per_day: number;
+          p_passes_generated_per_day: number;
+          p_now?: string;
         };
         Returns: Json;
       };
@@ -280,17 +348,23 @@ export type Database = {
         Returns: number;
       };
       redeem_qr: {
-        Args: { p_token_hash: string; p_eatery_user_id: string };
+        Args: {
+          p_token_hash: string;
+          p_eatery_user_id: string;
+          p_eatery_daily_limit: number;
+          p_now?: string;
+        };
         Returns: Json;
       };
-    };
-    Enums: {
-      user_role: UserRole;
-      contribution_status: ContributionStatus;
-      qr_status: QrStatus;
-      redemption_status: RedemptionStatus;
-      settlement_status: SettlementStatus;
-      pool_entry_type: PoolEntryType;
+      cancel_qr: {
+        Args: { p_qr_id: string; p_student_user_id: string };
+        Returns: Json;
+      };
+      health_check: { Args: Record<PropertyKey, never>; Returns: Json };
+      create_student_profile: {
+        Args: { p_user_id: string; p_display_name: string };
+        Returns: Json;
+      };
     };
   };
 };
