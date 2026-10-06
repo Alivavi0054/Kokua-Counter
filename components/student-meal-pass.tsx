@@ -5,7 +5,7 @@ import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { QR_TTL_MS } from "@/lib/public-constants";
+import { QR_TTL_MINUTES } from "@/lib/public-constants";
 
 type PassStatus = "active" | "redeemed" | "expired" | "cancelled";
 
@@ -261,7 +261,7 @@ export function StudentMealPass() {
         </div>
         <div
           className="mx-auto grid size-28 place-items-center rounded-full p-2"
-          style={{ background: `conic-gradient(var(--coral) ${Math.min(remainingSeconds / (QR_TTL_MS / 1000), 1) * 360}deg, var(--sand) 0deg)` }}
+          style={{ background: `conic-gradient(var(--coral) ${Math.min(remainingSeconds / (QR_TTL_MINUTES * 60), 1) * 360}deg, var(--sand) 0deg)` }}
           role="timer"
           aria-label={`Pass expires in ${countdown}`}
         >

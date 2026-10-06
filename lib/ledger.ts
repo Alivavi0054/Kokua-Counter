@@ -1,6 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getServerDailyLimits } from "@/lib/constants";
+import { getServerDailyLimits, QR_TTL_MINUTES } from "@/lib/constants";
 import type { Json } from "@/types/database";
 
 export type QrHoldResult =
@@ -90,6 +90,7 @@ export async function createQrHold(params: {
     p_expires_at: params.expiresAt,
     p_meals_per_day: limits.MEALS_PER_DAY,
     p_passes_generated_per_day: limits.PASSES_GENERATED_PER_DAY,
+    p_qr_ttl_minutes: QR_TTL_MINUTES,
     p_now: new Date().toISOString(),
   });
   if (error) throw error;

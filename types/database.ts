@@ -332,6 +332,7 @@ export type Database = {
           p_expires_at: string;
           p_meals_per_day: number;
           p_passes_generated_per_day: number;
+          p_qr_ttl_minutes: number;
           p_now?: string;
         };
         Returns: Json;

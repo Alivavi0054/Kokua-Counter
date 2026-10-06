@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/auth/guards";
-import { QR_TTL_MS } from "@/lib/constants";
+import { QR_TTL_MINUTES } from "@/lib/public-constants";
 import { generateQrToken, hashQrToken } from "@/lib/crypto/qr-token";
 import { createQrHold } from "@/lib/ledger";
 import { rateLimit } from "@/lib/rate-limit";
@@ -18,7 +18,7 @@ export async function POST() {
   }
 
   const token = generateQrToken();
-  const expiresAt = new Date(Date.now() + QR_TTL_MS).toISOString();
+  const expiresAt = new Date(Date.now() + QR_TTL_MINUTES * 60_000).toISOString();
   try {
     const result = await createQrHold({
       studentId: auth.user.id,
