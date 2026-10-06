@@ -13,6 +13,8 @@ const serif = Fraunces({
   variable: "--font-serif",
 });
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Kōkua Counter",
   description: "Fund a meal for a Hawaiʻi student. Students redeem a meal pass at participating eateries.",

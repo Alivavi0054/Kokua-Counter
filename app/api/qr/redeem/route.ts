@@ -6,6 +6,7 @@ import { redeemQr } from "@/lib/ledger";
 import { rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const bodySchema = z.object({
   token: z.string().trim().min(16).max(128),

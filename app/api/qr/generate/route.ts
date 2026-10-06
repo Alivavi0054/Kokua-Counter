@@ -6,6 +6,7 @@ import { createQrHold } from "@/lib/ledger";
 import { rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST() {
   const auth = await requireApiRole("student");

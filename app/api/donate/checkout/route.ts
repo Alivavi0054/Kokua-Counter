@@ -8,6 +8,7 @@ import { getStripe } from "@/lib/stripe/client";
 import { rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const bodySchema = z.object({
   amount_cents: z.number().int().min(MEAL_VALUE_CENTS).max(MAX_DONATION_CENTS),

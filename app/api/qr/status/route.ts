@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 
 const querySchema = z.string().uuid();
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
   const auth = await requireApiRole("student");
   if (!auth.ok) return auth.response;

@@ -1,5 +1,7 @@
 import { DonateForm } from "@/components/donate-form";
 
+export const dynamic = "force-dynamic";
+
 export default function DonatePage() {
   return (
     <div className="mx-auto max-w-lg space-y-6">

@@ -4,6 +4,7 @@ import { getServerEnv } from "@/lib/env";
 import { expireStaleQrs } from "@/lib/ledger";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function validCronSecret(request: Request, secret: string) {
   const authorization = request.headers.get("authorization") ?? "";

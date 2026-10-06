@@ -2,7 +2,34 @@
 # Kōkua Counter
 
 Kōkua Counter is a suspended-meal app. Donors contribute funds to a shared pool; verified University of Hawaiʻi students can redeem one $8 meal at an active participating eatery with a single-use QR pass. The pool is an append-only ledger, not a stored balance.
-Open `http://localhost:3000`. The meal value is fixed at 800 cents; startup environment validation rejects any other `MEAL_VALUE_CENTS` value.
+
+## Local Setup
+
+Prerequisites: Node.js 20+, Docker, the Supabase CLI, the Stripe CLI, and `psql`.
+
+```sh
+npm install
+cp .env.example .env.local
+npx supabase start
+npx supabase status
+npx supabase db reset
+```
+
+Copy the local API URL, anon key, and service-role key from `supabase status` into `.env.local`. Set `NEXT_PUBLIC_APP_URL` to `http://localhost:3000`. Set `CRON_SECRET` to a private random value, for example `openssl rand -hex 32`. Keep `.env.local` private.
+
+The reset command applies migrations and seeds local Auth accounts plus one active eatery. It does not add contributions, ledger entries, QR codes, or redemptions. Student magic-link messages appear in the local Supabase Inbucket at `http://127.0.0.1:54324`.
+
+## Stripe
+
+Use Stripe test-mode keys for `STRIPE_SECRET_KEY` and `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`. Start the local forwarder:
+
+```sh
+stripe login
+stripe listen --forward-to localhost:3000/api/donate/webhook
+```
+
+Copy the `whsec_...` value printed by `stripe listen` to `STRIPE_WEBHOOK_SECRET`, then restart Next.js. The checkout route creates a pending contribution and Stripe Checkout Session; only a verified webhook writes a credit or refund to the pool. The success page does not mark a payment complete.
+
 ## Run
 
 ```sh
@@ -63,36 +90,3 @@ The student account can also use the local magic-link flow. Eatery and admin acc
 ## Manual Verification
 
 After setup, verify the SQL accounting test, replay one identical Stripe refund webhook and confirm a single refund ledger entry, then open the same active student QR in two eatery scanner tabs and submit it concurrently. Exactly one redemption should succeed. Also verify the cron endpoint rejects a missing or incorrect secret.
-
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

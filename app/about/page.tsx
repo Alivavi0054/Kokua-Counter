@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 export default function AboutPage() {
   return (
     <article className="prose-none max-w-2xl space-y-4">

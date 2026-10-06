@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
+export const dynamic = "force-dynamic";
+
 export default function DonateCanceledPage() {
   return (
     <div className="mx-auto max-w-lg space-y-4">
