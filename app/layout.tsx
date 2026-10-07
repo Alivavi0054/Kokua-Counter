@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import { DM_Sans } from "next/font/google";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import "./globals.css";
@@ -33,6 +34,7 @@ export default function RootLayout({
         <SiteHeader />
         <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">{children}</main>
         <SiteFooter />
+        <Analytics />
       </body>
     </html>
   );
