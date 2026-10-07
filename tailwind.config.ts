@@ -51,7 +51,7 @@ const config: Config = {
       },
       fontFamily: {
         sans: ["var(--font-sans)"],
-        serif: ["var(--font-sans)"],
+        serif: ["Georgia", "serif"],
       },
     },
   },

@@ -21,7 +21,8 @@ export default function AboutPage() {
       </p>
       <p>
         Students sign in with a University of Hawaiʻi email (@hawaii.edu).
-        Eatery staff sign in with the account created for their kitchen.
+        An eatery is a participating food business where students redeem meal
+        passes. Its staff and administrators use their assigned login accounts.
       </p>
     </article>
   );

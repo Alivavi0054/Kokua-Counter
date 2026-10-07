@@ -3,14 +3,12 @@ import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 import { createClient } from "@/lib/supabase/server";
-import { isHawaiiEduEmail, normalizeHawaiiEduEmail } from "@/lib/auth/roles";
-import { getAppUrl } from "@/lib/env";
+import { isHawaiiEduEmail } from "@/lib/auth/roles";
 
 const bodySchema = z.object({
   email: z.string().email(),
-  password: z.string().min(1).optional(),
+  password: z.string().min(1),
   next: z.string().optional(),
-  mode: z.enum(["magic", "password"]),
 });
 
 function safeNext(path: string | undefined) {
@@ -33,31 +31,6 @@ export async function POST(request: Request) {
 
   const supabase = createClient();
   const next = safeNext(parsed.data.next);
-
-  if (parsed.data.mode === "magic") {
-    if (!isHawaiiEduEmail(parsed.data.email)) {
-      return NextResponse.json(
-        { error: "Use a University of Hawaiʻi email ending in @hawaii.edu." },
-        { status: 400 },
-      );
-    }
-    const origin = getAppUrl("magic-link callback redirects");
-    const { error } = await supabase.auth.signInWithOtp({
-      email: normalizeHawaiiEduEmail(parsed.data.email),
-      options: {
-        emailRedirectTo: `${origin}/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ""}`,
-        shouldCreateUser: true,
-      },
-    });
-    if (error) {
-      return NextResponse.json({ error: "Could not send sign-in link." }, { status: 400 });
-    }
-    return NextResponse.json({ ok: true });
-  }
-
-  if (!parsed.data.password) {
-    return NextResponse.json({ error: "Password is required." }, { status: 400 });
-  }
 
   const { error } = await supabase.auth.signInWithPassword({
     email: parsed.data.email.toLowerCase(),

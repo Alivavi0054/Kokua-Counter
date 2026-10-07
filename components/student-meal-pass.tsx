@@ -231,7 +231,7 @@ export function StudentMealPass() {
         <CardHeader><CardTitle>Meal pass unavailable</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <p role="alert">{error}</p>
-          <Button variant="outline" asChild><Link href="/student">Back to student home</Link></Button>
+          <Button variant="outline" asChild><a href="/student">Back to student home</a></Button>
         </CardContent>
       </Card>
     );

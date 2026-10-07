@@ -11,7 +11,7 @@
 ## Getting it running
 
 1. Create a Supabase project.
-   - Enable email confirmations in Supabase Auth so student profiles are created only after the magic link is confirmed.
+   - Enable email confirmations in Supabase Auth for student accounts. The local seed script creates confirmed test users with passwords.
 2. Fill `.env.local` with:
    - `NEXT_PUBLIC_APP_URL` — app URL, usually `http://localhost:3000`
    - `NEXT_PUBLIC_SUPABASE_URL` — Project URL from Supabase Dashboard → Project URL
@@ -33,7 +33,7 @@
 6. Open `http://localhost:3000/api/health` and expect `200`.
 7. Run `stripe listen --forward-to localhost:3000/api/donate/webhook` and paste the printed `whsec_...` value into `STRIPE_WEBHOOK_SECRET`.
 8. Make a $24 donation in the app.
-9. Log in at `/auth/dev-login` as the student and get a meal pass.
+9. Sign in at `/auth/login` as the student and get a meal pass.
 10. Log in as the eatery and scan the pass.
 11. Run `npm run smoke`.
 

@@ -2,6 +2,16 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabasePublicEnv } from "@/lib/env";
 
+function parseHttpOrigin(value: string | null): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.origin : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function middleware(request: NextRequest) {
   const nonceBytes = new Uint8Array(16);
   crypto.getRandomValues(nonceBytes);
@@ -44,8 +54,24 @@ export async function middleware(request: NextRequest) {
   const devLoginDisabled = request.nextUrl.pathname === "/api/auth/dev-login" &&
     (process.env.NODE_ENV === "production" || process.env.ENABLE_DEV_LOGIN !== "true");
   if (methodChangesState && !isStripeWebhook && !devLoginDisabled) {
-    const origin = request.headers.get("origin");
-    if (!origin || origin !== request.nextUrl.origin) {
+    const requestOrigin = parseHttpOrigin(
+      request.headers.get("origin") ?? request.headers.get("referer"),
+    );
+    const allowedOrigins = new Set([request.nextUrl.origin]);
+    const requestHost = request.headers.get("host")?.split(",")[0].trim();
+    const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0].trim();
+    const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0].trim();
+    const requestProto = forwardedProto ?? request.nextUrl.protocol.slice(0, -1);
+    if (requestHost) {
+      const hostOrigin = parseHttpOrigin(`${requestProto}://${requestHost}`);
+      if (hostOrigin) allowedOrigins.add(hostOrigin);
+    }
+    if (forwardedHost && forwardedProto) {
+      const forwardedOrigin = parseHttpOrigin(`${forwardedProto}://${forwardedHost}`);
+      if (forwardedOrigin) allowedOrigins.add(forwardedOrigin);
+    }
+
+    if (!requestOrigin || !allowedOrigins.has(requestOrigin)) {
       return addSecurityHeaders(
         NextResponse.json({ error: "Cross-origin request rejected." }, { status: 403 }),
       );

@@ -18,31 +18,9 @@ export function LoginForm() {
       ? "That account cannot open this page."
       : errorParam === "domain"
         ? "Use a University of Hawaiʻi email ending in @hawaii.edu."
-        : errorParam === "unverified"
-          ? "Confirm your email from the sign-in link before continuing."
-          : errorParam === "email-used"
-            ? "That email is already linked to a student account. Sign in with the original address."
         : null,
   );
   const [pending, setPending] = useState(false);
-
-  async function sendMagicLink(event: React.FormEvent) {
-    event.preventDefault();
-    setPending(true);
-    setMessage(null);
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, next, mode: "magic" }),
-    });
-    const payload = (await response.json()) as { error?: string; ok?: boolean };
-    setPending(false);
-    if (!response.ok) {
-      setMessage(payload.error ?? "Could not send sign-in link.");
-      return;
-    }
-    setMessage("Check your email for a sign-in link.");
-  }
 
   async function signInWithPassword(event: React.FormEvent) {
     event.preventDefault();
@@ -51,7 +29,7 @@ export function LoginForm() {
     const response = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, next, mode: "password" }),
+      body: JSON.stringify({ email, password, next }),
     });
     const payload = (await response.json()) as {
       error?: string;
@@ -66,45 +44,20 @@ export function LoginForm() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>Students</CardTitle>
+          <CardTitle>Account Login</CardTitle>
           <CardDescription>
-            Sign in with your @hawaii.edu email. We will email a one-time link.
+            Students, staff at participating food businesses (eateries), and administrators use their account email and password here.
           </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={sendMagicLink} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="student-email">University email</Label>
-              <Input
-                id="student-email"
-                type="email"
-                required
-                autoComplete="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={pending}>
-              {pending ? "Sending…" : "Email me a link"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Eatery or admin</CardTitle>
-          <CardDescription>Use the account created for your role.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={signInWithPassword} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="staff-email">Email</Label>
+              <Label htmlFor="login-email">Email</Label>
               <Input
-                id="staff-email"
+                id="login-email"
                 type="email"
                 required
                 autoComplete="username"
@@ -113,9 +66,9 @@ export function LoginForm() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="staff-password">Password</Label>
+              <Label htmlFor="login-password">Password</Label>
               <Input
-                id="staff-password"
+                id="login-password"
                 type="password"
                 required
                 autoComplete="current-password"
@@ -124,7 +77,7 @@ export function LoginForm() {
               />
             </div>
             <Button type="submit" className="w-full" disabled={pending}>
-              {pending ? "Signing in…" : "Sign in"}
+              {pending ? "Signing in…" : "Student Login"}
             </Button>
           </form>
         </CardContent>

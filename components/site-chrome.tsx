@@ -48,7 +48,7 @@ export async function SiteHeader() {
             </form>
           ) : (
             <Button asChild>
-              <Link href="/auth/login">Sign in</Link>
+              <Link href="/auth/login">Student Login</Link>
             </Button>
           )}
         </nav>
