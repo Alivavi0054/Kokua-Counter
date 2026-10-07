@@ -1,6 +1,8 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
+const STORAGE_DIR = process.env.KOKUA_DATA_DIR ?? "/tmp/kokua-counter-data";
+
 export type OrganizationRecord = {
   id: string;
   name: string;
@@ -30,22 +32,26 @@ export type SchoolRegistrationRecord = {
 };
 
 async function readJson<T>(fileName: string, fallback: T): Promise<T> {
-  const filePath = path.join(process.cwd(), "data", fileName);
+  const filePath = path.join(STORAGE_DIR, fileName);
   try {
     const text = await fs.readFile(filePath, "utf8");
     if (!text.trim()) return fallback;
     return JSON.parse(text) as T;
   } catch {
-    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.mkdir(STORAGE_DIR, { recursive: true });
     await fs.writeFile(filePath, JSON.stringify(fallback, null, 2), "utf8");
     return fallback;
   }
 }
 
 async function writeJson<T>(fileName: string, value: T) {
-  const filePath = path.join(process.cwd(), "data", fileName);
-  await fs.mkdir(path.dirname(filePath), { recursive: true });
-  await fs.writeFile(filePath, JSON.stringify(value, null, 2), "utf8");
+  const filePath = path.join(STORAGE_DIR, fileName);
+  try {
+    await fs.mkdir(STORAGE_DIR, { recursive: true });
+    await fs.writeFile(filePath, JSON.stringify(value, null, 2), "utf8");
+  } catch (error) {
+    console.warn(`Storage write failed for ${fileName}:`, error);
+  }
 }
 
 export async function listOrganizations(): Promise<OrganizationRecord[]> {

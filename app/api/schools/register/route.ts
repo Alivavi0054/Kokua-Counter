@@ -30,52 +30,62 @@ export async function POST(request: Request) {
   }
 
   const submission = parsed.data;
-  const saved = await createSchoolRegistration({
-    schoolName: submission.schoolName,
-    contactName: submission.contactName,
-    email: submission.email,
-    phone: submission.phone || undefined,
-    schoolType: submission.schoolType || undefined,
-    students: submission.students || undefined,
-    city: submission.city || undefined,
-    state: submission.state || undefined,
-    message: submission.message || undefined,
-  });
+
+  let saved;
+  try {
+    saved = await createSchoolRegistration({
+      schoolName: submission.schoolName,
+      contactName: submission.contactName,
+      email: submission.email,
+      phone: submission.phone || undefined,
+      schoolType: submission.schoolType || undefined,
+      students: submission.students || undefined,
+      city: submission.city || undefined,
+      state: submission.state || undefined,
+      message: submission.message || undefined,
+    });
+  } catch (error) {
+    console.error("School registration storage failed:", error);
+  }
 
   const resendApiKey = process.env.RESEND_API_KEY;
   if (resendApiKey) {
     const emailFrom = process.env.EMAIL_FROM ?? "Kōkua Counter <noreply@kokuacounter.app>";
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${resendApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: emailFrom,
-        to: ["alifnabulla@gmail.com"],
-        reply_to: submission.email,
-        subject: `School registration: ${submission.schoolName}`,
-        text: [
-          "New school registration request for Kōkua Counter",
-          "",
-          `School: ${submission.schoolName}`,
-          `Contact: ${submission.contactName}`,
-          `Email: ${submission.email}`,
-          `Phone: ${submission.phone || "Not provided"}`,
-          `School type: ${submission.schoolType || "Not provided"}`,
-          `Estimated students: ${submission.students || "Not provided"}`,
-          `Location: ${submission.city || "Not provided"}, ${submission.state || "Not provided"}`,
-          "",
-          `Message:\n${submission.message || "No additional message provided."}`,
-          "",
-          `Submitted at: ${saved.createdAt}`,
-        ].join("\n"),
-      }),
-    });
+    try {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: emailFrom,
+          to: ["alifnabulla@gmail.com"],
+          reply_to: submission.email,
+          subject: `School registration: ${submission.schoolName}`,
+          text: [
+            "New school registration request for Kōkua Counter",
+            "",
+            `School: ${submission.schoolName}`,
+            `Contact: ${submission.contactName}`,
+            `Email: ${submission.email}`,
+            `Phone: ${submission.phone || "Not provided"}`,
+            `School type: ${submission.schoolType || "Not provided"}`,
+            `Estimated students: ${submission.students || "Not provided"}`,
+            `Location: ${submission.city || "Not provided"}, ${submission.state || "Not provided"}`,
+            "",
+            `Message:\n${submission.message || "No additional message provided."}`,
+            "",
+            `Submitted at: ${saved?.createdAt ?? new Date().toISOString()}`,
+          ].join("\n"),
+        }),
+      });
 
-    if (!response.ok) {
-      console.error("Resend email failed", await response.text());
+      if (!response.ok) {
+        console.error("Resend email failed", await response.text());
+      }
+    } catch (error) {
+      console.error("Resend email threw an exception:", error);
     }
   }
 
