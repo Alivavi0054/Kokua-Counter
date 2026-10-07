@@ -1,0 +1,6 @@
+{
+  "name": "Kōkua Counter",
+  "description": "Nonprofit meal credit platform connecting University of Hawaiʻi students with nutritious plates at local partner eateries.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
