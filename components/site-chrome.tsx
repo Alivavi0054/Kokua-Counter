@@ -61,7 +61,10 @@ export function SiteFooter() {
   return (
     <footer className="mt-auto border-t">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-4 py-6 text-sm text-muted-foreground">
-        <p>Meal credits are shared across participating eateries in Hawaiʻi.</p>
+        <div className="flex flex-col gap-1">
+          <p>Meal credits are shared across participating eateries in Hawaiʻi.</p>
+          <p className="text-xs opacity-80">Made with love and care by Ali Abdulla</p>
+        </div>
         <nav aria-label="Legal" className="flex gap-4">
           <Link href="/privacy" className="underline-offset-4 hover:underline">Privacy</Link>
           <Link href="/terms" className="underline-offset-4 hover:underline">Terms</Link>
