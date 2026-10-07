@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiRole } from "@/lib/auth/guards";
 import { createOrganization } from "@/lib/organization-store";
+import { rateLimit } from "@/lib/rate-limit";
 
 const organizationSchema = z.object({
   name: z.string().trim().min(2).max(200),
@@ -11,7 +12,7 @@ const organizationSchema = z.object({
   phone: z.string().trim().max(50).optional().or(z.literal("")),
   city: z.string().trim().max(100).optional().or(z.literal("")),
   state: z.string().trim().max(60).optional().or(z.literal("")),
-  website: z.string().trim().max(200).optional().or(z.literal("")),
+  website: z.string().trim().url().max(200).optional().or(z.literal("")),
   notes: z.string().trim().max(2000).optional().or(z.literal("")),
 }).strict();
 
@@ -21,6 +22,11 @@ export async function POST(request: Request) {
   const auth = await requireApiRole("admin");
   if (!auth.ok) {
     return auth.response;
+  }
+
+  const limited = rateLimit(`admin-org-create:${auth.user.id}`, 20, 60_000);
+  if (!limited.ok) {
+    return NextResponse.json({ error: "Too many requests. Please wait." }, { status: 429 });
   }
 
   let body: unknown;

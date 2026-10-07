@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiRole } from "@/lib/auth/guards";
+import { rateLimit } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const updateSchema = z.object({
   is_active: z.boolean(),
 }).strict();
+
+const uuidSchema = z.string().uuid();
 
 export const runtime = "nodejs";
 
@@ -15,7 +18,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return auth.response;
   }
 
+  const limited = rateLimit(`admin-user-update:${auth.user.id}`, 30, 60_000);
+  if (!limited.ok) {
+    return NextResponse.json({ error: "Too many requests. Please wait." }, { status: 429 });
+  }
+
   const { id } = await params;
+  if (!uuidSchema.safeParse(id).success) {
+    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+  }
+
   if (id === auth.user.id) {
     return NextResponse.json({ error: "You cannot change your own account status." }, { status: 400 });
   }
