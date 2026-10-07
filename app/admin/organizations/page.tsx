@@ -20,6 +20,13 @@ export default async function AdminOrganizationsPage() {
         <h1 className="font-serif text-4xl">Organizations</h1>
       </div>
 
+      <a
+        href="/api/admin/organizations/export"
+        className="inline-flex min-h-10 items-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-muted"
+      >
+        Export CSV
+      </a>
+
       <AdminOrganizationForm />
 
       <section className="space-y-4">

@@ -92,6 +92,15 @@ export default async function AdminPage() {
         <a href="/admin/organizations" className="inline-flex min-h-11 items-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-muted">
           Manage organizations
         </a>
+        <a href="/admin/registrations" className="inline-flex min-h-11 items-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-muted">
+          School registrations
+        </a>
+        <a href="/admin/eateries" className="inline-flex min-h-11 items-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-muted">
+          Manage eateries
+        </a>
+        <a href="/admin/users" className="inline-flex min-h-11 items-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-muted">
+          Manage users
+        </a>
       </div>
       {!hasData ? <p className="text-muted-foreground">No program activity yet.</p> : null}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
