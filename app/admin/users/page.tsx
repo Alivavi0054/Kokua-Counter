@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AdminCreateUserForm } from "@/components/admin-create-user-form";
 import { AdminUsersTable } from "@/components/admin-users-table";
 import { requireRole } from "@/lib/auth/guards";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -28,6 +29,8 @@ export default async function AdminUsersPage() {
         <p className="text-sm font-medium text-primary">Admin tools</p>
         <h1 className="font-serif text-4xl">Users</h1>
       </div>
+
+      <AdminCreateUserForm />
 
       {!users?.length ? (
         <p className="text-muted-foreground">No users yet.</p>

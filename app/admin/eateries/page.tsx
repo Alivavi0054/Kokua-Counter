@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AdminCreateEateryForm } from "@/components/admin-create-eatery-form";
 import { AdminEateriesTable } from "@/components/admin-eateries-table";
 import { requireRole } from "@/lib/auth/guards";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -27,6 +28,8 @@ export default async function AdminEateriesPage() {
         <p className="text-sm font-medium text-primary">Admin tools</p>
         <h1 className="font-serif text-4xl">Eateries</h1>
       </div>
+
+      <AdminCreateEateryForm />
 
       {!eateries?.length ? (
         <p className="text-muted-foreground">No eateries have been created yet.</p>
