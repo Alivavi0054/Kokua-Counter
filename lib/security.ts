@@ -30,10 +30,27 @@ export function isAllowedRedirect(value: string | null | undefined): string | nu
 export function verifyOriginMatches(request: Request, appUrl: string): boolean {
   const originHeader = request.headers.get("origin");
   const refererHeader = request.headers.get("referer");
-  const expected = new URL(appUrl).origin;
+  const expected = new URL(appUrl);
+  const actualOrigin = originHeader ?? (refererHeader ? new URL(refererHeader).origin : null);
 
-  const actual = originHeader ?? (refererHeader ? new URL(refererHeader).origin : null);
-  return Boolean(actual && actual === expected);
+  if (!actualOrigin) {
+    return false;
+  }
+
+  const actual = new URL(actualOrigin);
+  if (actual.origin === expected.origin) {
+    return true;
+  }
+
+  const localhostHostnames = new Set(["localhost", "127.0.0.1", "::1"]);
+  if (
+    localhostHostnames.has(actual.hostname) &&
+    localhostHostnames.has(expected.hostname)
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 export function safeTimingCompare(supplied: string | undefined, expected: string | undefined): boolean {

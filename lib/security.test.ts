@@ -18,6 +18,14 @@ describe("security helpers", () => {
     expect(verifyOriginMatches(badOriginRequest, appUrl)).toBe(false);
   });
 
+  it("accepts localhost development requests across different local ports", () => {
+    const request = new Request("http://localhost:3001/api/test", {
+      headers: { origin: "http://localhost:3001" },
+    });
+
+    expect(verifyOriginMatches(request, "http://localhost:3000")).toBe(true);
+  });
+
   it("allows only relative safe redirects", () => {
     expect(isAllowedRedirect("/student")).toBe("/student");
     expect(isAllowedRedirect("https://evil.example.com")).toBeNull();
