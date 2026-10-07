@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Kōkua Counter icon">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#1f8f73"/>
+      <stop offset="100%" stop-color="#0b5f4a"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f7d9a6"/>
+      <stop offset="100%" stop-color="#e6b765"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#bg)"/>
+  <path d="M18 18h8v28h-8z" fill="#f6f7f4"/>
+  <path d="M26 32l12-14h8L34 32l12 14h-8L26 32z" fill="#f6f7f4"/>
+  <path d="M20 42h24c3.3 0 6 2.7 6 6v0H14v0c0-3.3 2.7-6 6-6z" fill="url(#accent)" opacity="0.95"/>
+  <circle cx="44" cy="18" r="3" fill="#f7d9a6"/>
+</svg>

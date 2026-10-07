@@ -13,6 +13,11 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: { default: "Kōkua Counter", template: "%s | Kōkua Counter" },
   description: "Fund a meal for a Hawaiʻi student. Students redeem a meal pass at participating eateries.",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
