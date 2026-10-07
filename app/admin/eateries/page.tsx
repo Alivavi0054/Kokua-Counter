@@ -14,7 +14,7 @@ export default async function AdminEateriesPage() {
   const admin = createAdminClient();
   const { data: eateries, error } = await admin
     .from("eateries")
-    .select("id, name, island, address, contact_email, is_active, created_at")
+    .select("id, name, island, address, contact_email, is_active, stripe_connect_account_id, created_at")
     .order("created_at", { ascending: false });
 
   if (error) {

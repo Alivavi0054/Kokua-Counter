@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { EateryActiveToggle } from "@/components/admin-eatery-toggle";
+import { SettleEateryButton } from "@/components/admin-settle-eatery-button";
 import { Input } from "@/components/ui/input";
 
 type Eatery = {
@@ -11,6 +12,7 @@ type Eatery = {
   address: string;
   contact_email: string;
   is_active: boolean;
+  stripe_connect_account_id: string | null;
 };
 
 export function AdminEateriesTable({ eateries }: { eateries: Eatery[] }) {
@@ -46,6 +48,7 @@ export function AdminEateriesTable({ eateries }: { eateries: Eatery[] }) {
                 <th className="px-4 py-3 font-medium">Island</th>
                 <th className="px-4 py-3 font-medium">Contact</th>
                 <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium">Payouts</th>
                 <th className="px-4 py-3 text-right font-medium">Action</th>
               </tr>
             </thead>
@@ -63,8 +66,16 @@ export function AdminEateriesTable({ eateries }: { eateries: Eatery[] }) {
                       {eatery.is_active ? "Active" : "Inactive"}
                     </span>
                   </td>
+                  <td className="px-4 py-3">
+                    <span className={eatery.stripe_connect_account_id ? "text-green-700" : "text-muted-foreground"}>
+                      {eatery.stripe_connect_account_id ? "Connected" : "Not connected"}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-right">
-                    <EateryActiveToggle eateryId={eatery.id} isActive={eatery.is_active} />
+                    <div className="flex flex-col items-end gap-2">
+                      <EateryActiveToggle eateryId={eatery.id} isActive={eatery.is_active} />
+                      <SettleEateryButton eateryId={eatery.id} isConnected={Boolean(eatery.stripe_connect_account_id)} />
+                    </div>
                   </td>
                 </tr>
               ))}

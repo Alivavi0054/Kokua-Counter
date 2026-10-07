@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConnectPayoutsButton } from "@/components/connect-payouts-button";
 import { requireRole } from "@/lib/auth/guards";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -29,7 +30,7 @@ export default async function EateryPage() {
   const supabase = await createClient();
   const { data: eatery, error: eateryError } = await supabase
     .from("eateries")
-    .select("id, name, is_active")
+    .select("id, name, is_active, stripe_connect_account_id")
     .eq("owner_user_id", user.id)
     .maybeSingle();
   if (eateryError) throw new Error("Could not load eatery.");
@@ -63,6 +64,17 @@ export default async function EateryPage() {
             <CardContent><p className="font-serif text-5xl">{acceptedCount}</p></CardContent>
           </Card>
           <Button asChild><Link href="/eatery/scan">Scan meal pass</Link></Button>
+          <Card>
+            <CardHeader><CardTitle>Payouts</CardTitle></CardHeader>
+            <CardContent>
+              <p className="mb-3 text-sm text-muted-foreground">
+                {eatery.stripe_connect_account_id
+                  ? "Your payout account is connected."
+                  : "Connect a payout account to receive settlements for redeemed meals."}
+              </p>
+              <ConnectPayoutsButton isConnected={Boolean(eatery.stripe_connect_account_id)} />
+            </CardContent>
+          </Card>
         </>
       )}
     </div>

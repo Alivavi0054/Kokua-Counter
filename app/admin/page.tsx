@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Metadata } from "next";
+import { RefundContributionButton } from "@/components/admin-refund-button";
 import { requireRole } from "@/lib/auth/guards";
 import { formatUsdFromCents } from "@/lib/utils";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -16,7 +17,7 @@ export default async function AdminPage() {
   await expireStaleQrs();
 
   const admin = createAdminClient();
-  const [contributionsResult, activeQrsResult, redemptionsResult, eateriesResult, recentResult, balanceCents] =
+  const [contributionsResult, activeQrsResult, redemptionsResult, eateriesResult, recentResult, recentContributionsResult, balanceCents] =
     await Promise.all([
       admin
         .from("contributions")
@@ -40,15 +41,23 @@ export default async function AdminPage() {
         .eq("status", "completed")
         .order("redeemed_at", { ascending: false })
         .limit(8),
+      admin
+        .from("contributions")
+        .select("id, amount_cents, refunded_amount_cents, status, created_at")
+        .in("status", ["completed", "refunded"])
+        .order("created_at", { ascending: false })
+        .limit(8),
       getPoolBalanceCents(),
     ]);
 
   if (
     contributionsResult.error || activeQrsResult.error || redemptionsResult.error ||
-    eateriesResult.error || recentResult.error
+    eateriesResult.error || recentResult.error || recentContributionsResult.error
   ) {
     throw new Error("Could not load admin metrics.");
   }
+
+  const recentContributions = recentContributionsResult.data ?? [];
 
   const contributions = contributionsResult.data ?? [];
   const grossCents = contributions.reduce((total, item) => total + item.amount_cents, 0);
@@ -132,6 +141,44 @@ export default async function AdminPage() {
                     <td className="px-4 py-3 text-right">{formatUsdFromCents(item.amount_cents)}</td>
                   </tr>
                 ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+      <section className="space-y-3">
+        <h2 className="font-serif text-2xl">Recent contributions</h2>
+        {!recentContributions.length ? (
+          <p className="text-muted-foreground">No contributions yet.</p>
+        ) : (
+          <div className="overflow-x-auto rounded-md border">
+            <table className="w-full min-w-[32rem] text-left text-sm">
+              <thead className="bg-muted text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Date</th>
+                  <th className="px-4 py-3 font-medium">Amount</th>
+                  <th className="px-4 py-3 font-medium">Refunded</th>
+                  <th className="px-4 py-3 text-right font-medium">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {recentContributions.map((item) => {
+                  const remaining = item.amount_cents - item.refunded_amount_cents;
+                  return (
+                    <tr key={item.id}>
+                      <td className="px-4 py-3">{new Date(item.created_at).toLocaleString("en-US", { timeZone: "Pacific/Honolulu" })}</td>
+                      <td className="px-4 py-3">{formatUsdFromCents(item.amount_cents)}</td>
+                      <td className="px-4 py-3">{formatUsdFromCents(item.refunded_amount_cents)}</td>
+                      <td className="px-4 py-3 text-right">
+                        {remaining > 0 ? (
+                          <RefundContributionButton contributionId={item.id} />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Fully refunded</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

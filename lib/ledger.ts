@@ -188,3 +188,40 @@ export async function getPoolBalanceCents(): Promise<number> {
   if (error) throw error;
   return Number(data ?? 0);
 }
+
+export type CreateSettlementResult =
+  | { ok: true; settlement_id: string; amount_cents: number; stripe_connect_account_id: string }
+  | { ok: false; error_code: "eatery_not_found" | "payouts_not_connected" | "nothing_to_settle" };
+
+export async function createSettlement(eateryId: string): Promise<CreateSettlementResult> {
+  const { data, error } = await createAdminClient().rpc("create_settlement", {
+    p_eatery_id: eateryId,
+  });
+  if (error) throw error;
+  const payload = asObject(data);
+  if (payload.ok === true) {
+    return {
+      ok: true,
+      settlement_id: String(payload.settlement_id),
+      amount_cents: Number(payload.amount_cents),
+      stripe_connect_account_id: String(payload.stripe_connect_account_id),
+    };
+  }
+  return {
+    ok: false,
+    error_code: payload.error_code as "eatery_not_found" | "payouts_not_connected" | "nothing_to_settle",
+  };
+}
+
+export async function markSettlementResult(params: {
+  settlementId: string;
+  status: "paid" | "failed";
+  stripeTransferId?: string;
+}): Promise<void> {
+  const { error } = await createAdminClient().rpc("mark_settlement_result", {
+    p_settlement_id: params.settlementId,
+    p_status: params.status,
+    p_stripe_transfer_id: params.stripeTransferId ?? null,
+  });
+  if (error) throw error;
+}

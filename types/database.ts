@@ -363,6 +363,19 @@ export type Database = {
         Args: { p_user_id: string; p_display_name: string };
         Returns: Json;
       };
+      create_settlement: {
+        Args: { p_eatery_id: string; p_now?: string };
+        Returns: Json;
+      };
+      mark_settlement_result: {
+        Args: {
+          p_settlement_id: string;
+          p_status: SettlementStatus;
+          p_stripe_transfer_id?: string | null;
+          p_stripe_payout_id?: string | null;
+        };
+        Returns: undefined;
+      };
       record_qr_scan_failure: {
         Args: { p_eatery_user_id: string; p_now?: string };
         Returns: boolean;
