@@ -31,7 +31,7 @@ export function getSupabaseAdminEnv(feature: string) {
 }
 
 export function getAppUrl(feature: string): string {
-  return requireUrl("NEXT_PUBLIC_APP_URL", feature);
+  return requireUrl("APP_URL", feature);
 }
 
 export function getStripeSecretKey(): string {
