@@ -16,7 +16,7 @@ export type ApiRoleResult =
   | { ok: false; response: NextResponse };
 
 export async function loadUser(): Promise<AppUser | null> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

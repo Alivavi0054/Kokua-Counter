@@ -1,7 +1,7 @@
-import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getCronSecret } from "@/lib/env";
 import { expireStaleQrs } from "@/lib/ledger";
+import { safeTimingCompare } from "@/lib/security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,10 +9,7 @@ export const dynamic = "force-dynamic";
 function validCronSecret(request: Request, secret: string) {
   const authorization = request.headers.get("authorization") ?? "";
   const supplied = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
-  const expectedBuffer = Buffer.from(secret);
-  const suppliedBuffer = Buffer.from(supplied);
-  return suppliedBuffer.length === expectedBuffer.length &&
-    timingSafeEqual(suppliedBuffer, expectedBuffer);
+  return safeTimingCompare(supplied, secret);
 }
 
 export async function GET(request: Request) {

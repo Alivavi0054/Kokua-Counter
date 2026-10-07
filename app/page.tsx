@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: eateries } = await supabase
     .from("public_eateries")
     .select("name, slug, island, address")

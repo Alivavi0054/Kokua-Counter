@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default async function StudentHistoryPage() {
   const user = await requireRole("student");
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: passes, error } = await supabase
     .from("qr_codes")
     .select("id, status, created_at, expires_at, redeemed_at")

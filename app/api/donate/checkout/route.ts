@@ -6,6 +6,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe/client";
 import { rateLimit } from "@/lib/rate-limit";
+import { parseJsonBody, verifyOriginMatches } from "@/lib/security";
+
+function getClientIp(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for") ?? request.headers.get("x-real-ip") ?? "local";
+  return forwarded.split(",")[0].trim() || "local";
+}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,48 +21,45 @@ const bodySchema = z.object({
     .refine((amount) => amount % 100 === 0),
   donor_email: z.string().email().max(254).optional(),
   is_anonymous: z.boolean().optional().default(true),
-});
+}).strict();
 
 export async function POST(request: Request) {
-  const limited = rateLimit(
-    `donate:${request.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim() ?? "local"}`,
-    10,
-    60_000,
-  );
+  if (!verifyOriginMatches(request, getAppUrl("donation checkout requests"))) {
+    return NextResponse.json({ error: "Invalid request." }, { status: 403 });
+  }
+
+  const clientIp = getClientIp(request);
+  const limited = rateLimit(`donate:${clientIp}`, 10, 60_000);
   if (!limited.ok) {
     return NextResponse.json({ error: "Too many requests." }, { status: 429 });
   }
 
-  let json: unknown;
-  try {
-    json = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+  const parsedBody = await parseJsonBody(request, bodySchema);
+  if (!parsedBody.ok) {
+    return NextResponse.json({ error: parsedBody.error }, { status: parsedBody.status });
   }
 
-  const parsed = bodySchema.safeParse(json);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Enter a whole-dollar amount of at least $8." },
-      { status: 400 },
-    );
-  }
-
-  const supabase = createClient();
+  const donorEmail = parsedBody.data.donor_email?.trim().toLowerCase();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  if (user && donorEmail && donorEmail !== user.email?.toLowerCase()) {
+    return NextResponse.json({ error: "Donor email does not match the signed-in account." }, { status: 400 });
+  }
+
   const appUrl = getAppUrl("donation checkout redirects");
 
   const admin = createAdminClient();
   const { data: contribution, error } = await admin
     .from("contributions")
     .insert({
-      donor_user_id: parsed.data.is_anonymous ? null : user?.id ?? null,
-      amount_cents: parsed.data.amount_cents,
+      donor_user_id: parsedBody.data.is_anonymous ? null : user?.id ?? null,
+      amount_cents: parsedBody.data.amount_cents,
       currency: "usd",
       status: "pending",
-      is_anonymous: parsed.data.is_anonymous,
+      is_anonymous: parsedBody.data.is_anonymous,
     })
     .select("id")
     .single();
@@ -74,7 +77,7 @@ export async function POST(request: Request) {
       mode: "payment",
       success_url: `${appUrl}/donate/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/donate/canceled`,
-      customer_email: parsed.data.donor_email ?? user?.email,
+      customer_email: donorEmail ?? user?.email,
       metadata: {
         contribution_id: contribution.id,
       },
@@ -88,7 +91,7 @@ export async function POST(request: Request) {
           quantity: 1,
           price_data: {
             currency: "usd",
-            unit_amount: parsed.data.amount_cents,
+            unit_amount: parsedBody.data.amount_cents,
             product_data: {
               name: "Kōkua Counter meal credits",
             },

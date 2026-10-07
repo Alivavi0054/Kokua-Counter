@@ -40,12 +40,22 @@ export async function middleware(request: NextRequest) {
 
   const addSecurityHeaders = (response: NextResponse) => {
     response.headers.set("Content-Security-Policy", contentSecurityPolicy);
-    response.headers.set(
-      "Permissions-Policy",
+    response.headers.set("X-Content-Type-Options", "nosniff");
+    response.headers.set("X-Frame-Options", "DENY");
+    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+    response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+    response.headers.set("Cross-Origin-Resource-Policy", "same-origin");
+    response.headers.set("Permissions-Policy",
       request.nextUrl.pathname === "/eatery/scan"
         ? "camera=(self), microphone=(), geolocation=()"
         : "camera=(), microphone=(), geolocation=()",
     );
+    if (process.env.NODE_ENV === "production") {
+      response.headers.set(
+        "Strict-Transport-Security",
+        "max-age=63072000; includeSubDomains; preload",
+      );
+    }
     return response;
   };
 

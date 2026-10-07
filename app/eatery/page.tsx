@@ -26,7 +26,7 @@ function hawaiiDayRange(now: Date) {
 
 export default async function EateryPage() {
   const user = await requireRole("eatery");
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: eatery, error: eateryError } = await supabase
     .from("eateries")
     .select("id, name, is_active")

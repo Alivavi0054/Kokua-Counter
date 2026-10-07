@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Invalid pass." }, { status: 400 });
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: qr, error } = await supabase
     .from("qr_codes")
     .select("id, status, expires_at, redeemed_at")

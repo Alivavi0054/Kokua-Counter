@@ -21,10 +21,11 @@ const resultMessages: Record<string, string> = {
 export default async function EateryConfirmationPage({
   searchParams,
 }: {
-  searchParams: { redemption_id?: string; result?: string };
+  searchParams: Promise<{ redemption_id?: string; result?: string }>;
 }) {
+  const params = await searchParams;
   await requireRole("eatery");
-  if (searchParams.redemption_id) {
+  if (params.redemption_id) {
     return (
       <Card className="mx-auto max-w-lg">
         <CardHeader className="border-l-4 border-emerald-700 bg-emerald-50 text-emerald-950">
@@ -43,7 +44,7 @@ export default async function EateryConfirmationPage({
         <CardTitle>Meal pass not accepted</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p role="status">{resultMessages[searchParams.result ?? ""] ?? resultMessages.unavailable}</p>
+        <p role="status">{resultMessages[params.result ?? ""] ?? resultMessages.unavailable}</p>
         <Button asChild><Link href="/eatery/scan">Scan another pass</Link></Button>
       </CardContent>
     </Card>

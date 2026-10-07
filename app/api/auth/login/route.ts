@@ -4,6 +4,9 @@ import { z } from "zod";
 export const dynamic = "force-dynamic";
 import { createClient } from "@/lib/supabase/server";
 import { isHawaiiEduEmail } from "@/lib/auth/roles";
+import { rateLimit } from "@/lib/rate-limit";
+import { parseJsonBody, verifyOriginMatches } from "@/lib/security";
+import { getAppUrl } from "@/lib/env";
 
 const bodySchema = z.object({
   email: z.string().email(),
@@ -17,24 +20,35 @@ function safeNext(path: string | undefined) {
 }
 
 export async function POST(request: Request) {
-  let json: unknown;
-  try {
-    json = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+  if (!verifyOriginMatches(request, getAppUrl("login form requests"))) {
+    return NextResponse.json({ error: "Invalid request." }, { status: 403 });
   }
 
-  const parsed = bodySchema.safeParse(json);
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Enter a valid email." }, { status: 400 });
+  const clientIp = (request.headers.get("x-forwarded-for") ?? request.headers.get("x-real-ip") ?? "local")
+    .split(",")[0]
+    .trim() || "local";
+
+  const limited = rateLimit(`auth-login:${clientIp}`, 8, 60_000);
+  if (!limited.ok) {
+    return NextResponse.json({ error: "Too many sign-in attempts. Please wait a minute and try again." }, { status: 429 });
   }
 
-  const supabase = createClient();
-  const next = safeNext(parsed.data.next);
+  const parsedBody = await parseJsonBody(request, bodySchema.strict());
+  if (!parsedBody.ok) {
+    return NextResponse.json({ error: parsedBody.error }, { status: parsedBody.status });
+  }
+
+  const email = parsedBody.data.email.trim().toLowerCase();
+  if (email.length > 254 || parsedBody.data.password.length > 128) {
+    return NextResponse.json({ error: "Invalid login details." }, { status: 400 });
+  }
+
+  const supabase = await createClient();
+  const next = safeNext(parsedBody.data.next);
 
   const { error } = await supabase.auth.signInWithPassword({
-    email: parsed.data.email.toLowerCase(),
-    password: parsed.data.password,
+    email,
+    password: parsedBody.data.password,
   });
   if (error) {
     return NextResponse.json({ error: "Could not sign in." }, { status: 400 });
@@ -47,7 +61,7 @@ export async function POST(request: Request) {
     ? await supabase.from("users").select("role").eq("id", user.id).maybeSingle()
     : { data: null };
 
-  if (profile?.role === "student" && !isHawaiiEduEmail(parsed.data.email)) {
+  if (profile?.role === "student" && !isHawaiiEduEmail(email)) {
     await supabase.auth.signOut();
     return NextResponse.json(
       { error: "Use a University of Hawaiʻi email ending in @hawaii.edu." },

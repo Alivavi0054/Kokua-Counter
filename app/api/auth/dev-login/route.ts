@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   }
 
   const appUrl = getAppUrl("developer login redirects");
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
     return NextResponse.json({ error: "Invalid login." }, { status: 401 });
