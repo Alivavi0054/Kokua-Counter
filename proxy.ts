@@ -12,7 +12,7 @@ function parseHttpOrigin(value: string | null): string | null {
   }
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const nonceBytes = new Uint8Array(16);
   crypto.getRandomValues(nonceBytes);
   const nonce = btoa(Array.from(nonceBytes, (byte) => String.fromCharCode(byte)).join(""));
