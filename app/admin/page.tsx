@@ -88,6 +88,11 @@ export default async function AdminPage() {
         <p className="text-sm font-medium text-primary">Program overview</p>
         <h1 className="font-serif text-4xl">Kōkua Counter</h1>
       </div>
+      <div className="flex flex-wrap gap-3">
+        <a href="/admin/organizations" className="inline-flex min-h-11 items-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-muted">
+          Manage organizations
+        </a>
+      </div>
       {!hasData ? <p className="text-muted-foreground">No program activity yet.</p> : null}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {metrics.map((metric) => (

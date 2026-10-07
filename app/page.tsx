@@ -39,6 +39,12 @@ export default async function HomePage() {
                 Contribute to the meal pool <span aria-hidden="true">→</span>
               </Link>
               <Link
+                href="/school/register"
+                className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[#c9d1c9] bg-white px-6 text-sm font-semibold text-[#18392b] transition-colors hover:bg-[#f0f3ef]"
+              >
+                Register a school
+              </Link>
+              <Link
                 href="/auth/login"
                 className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[#c9d1c9] bg-white px-6 text-sm font-semibold text-[#18392b] transition-colors hover:bg-[#f0f3ef]"
               >

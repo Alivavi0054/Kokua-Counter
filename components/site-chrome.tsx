@@ -40,6 +40,14 @@ export async function SiteHeader() {
           <Button variant="ghost" asChild>
             <Link href="/donate">Donate</Link>
           </Button>
+          <Button variant="ghost" asChild>
+            <Link href="/school/register">Register School</Link>
+          </Button>
+          {role === "admin" ? (
+            <Button variant="ghost" asChild>
+              <Link href="/admin/organizations">Organizations</Link>
+            </Button>
+          ) : null}
           {user ? (
             <form action="/auth/signout" method="post">
               <Button variant="outline" type="submit">
