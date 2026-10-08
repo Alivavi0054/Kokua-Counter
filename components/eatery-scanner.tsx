@@ -39,32 +39,42 @@ export function EateryScanner() {
   async function startScanner() {
     setCameraError(null);
     if (!navigator.mediaDevices?.getUserMedia) {
-      setCameraError("This browser does not support camera access. Use a newer browser or Chrome/Safari on a phone.");
+      setCameraError("This browser does not support camera access. Use a newer browser like Chrome or Safari.");
       return;
     }
 
-    if (!window.isSecureContext) {
-      setCameraError("Camera access requires HTTPS. Use https://www.kokuacounter.app on a phone, or http://localhost:3000 on your computer. Localhost on a phone requires HTTPS.");
+    if (!window.isSecureContext && !window.location.hostname.includes("localhost")) {
+      setCameraError("Camera access requires HTTPS on non-localhost addresses.");
       return;
     }
 
     setStarting(true);
     let permissionStream: MediaStream | null = null;
     try {
+      // Request camera permission explicitly
       permissionStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: "environment" } },
         audio: false,
       });
+
+      // Permission granted, now load and start scanner
       const { Html5Qrcode } = await import("html5-qrcode");
       const cameras = await Html5Qrcode.getCameras();
-      const camera = cameras.find((device) => /back|rear|environment/i.test(device.label)) ?? cameras[0];
-      if (!camera) throw new DOMException("No camera found.", "NotFoundError");
+      
+      if (!cameras || cameras.length === 0) {
+        throw new DOMException("No camera found on this device.", "NotFoundError");
+      }
 
+      const camera = cameras.find((device) => /back|rear|environment/i.test(device.label)) ?? cameras[0];
+
+      // Clean up permission stream before starting scanner
       permissionStream.getTracks().forEach((track) => track.stop());
       permissionStream = null;
 
+      // Initialize and start the QR scanner
       const scanner = new Html5Qrcode("eatery-qr-reader");
       scannerRef.current = scanner;
+      
       await scanner.start(
         camera.id,
         { fps: 10, qrbox: { width: 250, height: 250 } },
@@ -75,8 +85,9 @@ export function EateryScanner() {
           try {
             await scanner.stop();
           } catch {
-            // The scanner may already have stopped during teardown.
+            // Scanner may already be stopped during cleanup
           }
+          
           const token = parseQrPayload(decodedText) ?? decodedText;
           try {
             const response = await fetch("/api/qr/redeem", {
@@ -102,12 +113,15 @@ export function EateryScanner() {
         },
         () => undefined,
       );
+      
       setScanning(true);
+      setStarting(false);
     } catch (error) {
+      setStarting(false);
       setCameraError(getCameraErrorMessage(error));
+      console.error("[Camera Error]", error);
     } finally {
       permissionStream?.getTracks().forEach((track) => track.stop());
-      setStarting(false);
     }
   }
 
