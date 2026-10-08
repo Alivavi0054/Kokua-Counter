@@ -47,8 +47,19 @@ export function EateryScanner() {
   useEffect(() => {
     return () => {
       const scanner = scannerRef.current;
-      if (scanner?.isScanning) {
-        void scanner.stop().then(() => scanner.clear()).catch(() => undefined);
+      if (scanner && scanner.isScanning) {
+        console.log("[Camera] Cleanup: Stopping scanner on unmount");
+        void scanner.stop()
+          .then(() => {
+            console.log("[Camera] Cleanup: Scanner stopped");
+            return scanner.clear();
+          })
+          .then(() => {
+            console.log("[Camera] Cleanup: Scanner cleared");
+          })
+          .catch((error) => {
+            console.error("[Camera] Cleanup error:", error);
+          });
       }
     };
   }, []);
@@ -65,31 +76,25 @@ export function EateryScanner() {
     }
 
     setStarting(true);
-    let permissionStream: MediaStream | null = null;
     
     try {
-      console.log("[Camera] 1. Checking HTTPS context...", { 
-        isSecure: window.isSecureContext,
-        protocol: window.location.protocol,
-        hostname: window.location.hostname 
-      });
-      
-      console.log("[Camera] 2. Requesting camera access (browser will ask for permission)...");
-      
-      // This line should trigger the permission popup on mobile
-      permissionStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-        audio: false,
-      });
+      // First stop any existing scanner to release camera
+      if (scannerRef.current && scannerRef.current.isScanning) {
+        console.log("[Camera] Stopping previous scanner to release camera...");
+        await scannerRef.current.stop();
+        await scannerRef.current.clear();
+        scannerRef.current = null;
+        // Small delay to let OS fully release the camera
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
 
-      console.log("[Camera] 3. Permission granted! Got access to tracks:", permissionStream.getTracks().length);
-
+      console.log("[Camera] 1. Checking browser support...");
+      console.log("[Camera] 2. Loading html5-qrcode library...");
+      
       // Load QR code scanner library
       const { Html5Qrcode } = await import("html5-qrcode");
+      
+      console.log("[Camera] 3. Getting available cameras...");
       const cameras = await Html5Qrcode.getCameras();
       
       if (!cameras || cameras.length === 0) {
@@ -100,36 +105,36 @@ export function EateryScanner() {
 
       // Prefer rear/environment camera for phone usage
       const camera = cameras.find((device) => /back|rear|environment/i.test(device.label)) ?? cameras[0];
+      console.log("[Camera] 5. Selected camera:", camera.label);
 
-      // Stop the permission check stream before starting the real scanner
-      permissionStream.getTracks().forEach((track) => {
-        track.stop();
-        console.log("[Camera] 5. Stopped permission check track:", track.kind);
-      });
-      permissionStream = null;
-
-      // Initialize scanner
+      // Create new scanner instance
       const scanner = new Html5Qrcode("eatery-qr-reader");
       scannerRef.current = scanner;
       
-      console.log("[Camera] 6. Starting QR scanner with camera:", camera.label);
+      console.log("[Camera] 6. Starting scanner (will request permission now)...");
       
+      // Start scanner - this will trigger the permission popup if needed
       await scanner.start(
         camera.id,
-        { fps: 10, qrbox: { width: 250, height: 250 } },
+        { 
+          fps: 10, 
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.777,
+        },
         async (decodedText) => {
           if (processingRef.current) return;
           processingRef.current = true;
           setScanning(false);
           
+          console.log("[QR] Decoded token, stopping scanner...");
           try {
             await scanner.stop();
-          } catch {
-            // Scanner already stopped
+          } catch (error) {
+            console.warn("[QR] Error stopping scanner:", error);
           }
           
           const token = parseQrPayload(decodedText) ?? decodedText;
-          console.log("[QR] Decoded token, submitting to redeem endpoint...");
+          console.log("[QR] Submitting to redeem endpoint...");
           
           try {
             const response = await fetch("/api/qr/redeem", {
@@ -156,10 +161,10 @@ export function EateryScanner() {
             router.replace("/eatery/confirmation?result=unavailable");
           }
         },
-        () => undefined,
+        () => undefined, // No error callback - handle errors via catch
       );
       
-      console.log("[Camera] 7. Scanner started successfully!");
+      console.log("[Camera] 7. Scanner started successfully - waiting for QR code...");
       setScanning(true);
       setStarting(false);
     } catch (error) {
@@ -170,12 +175,21 @@ export function EateryScanner() {
         errorStack: error instanceof Error ? error.stack : "No stack",
       });
       
+      // Clean up failed scanner
+      if (scannerRef.current) {
+        try {
+          if (scannerRef.current.isScanning) {
+            await scannerRef.current.stop();
+          }
+          await scannerRef.current.clear();
+        } catch {
+          // Ignore cleanup errors
+        }
+        scannerRef.current = null;
+      }
+      
       setStarting(false);
       setCameraError(getCameraErrorMessage(error));
-    } finally {
-      permissionStream?.getTracks().forEach((track) => {
-        track.stop();
-      });
     }
   }
 
