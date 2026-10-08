@@ -26,21 +26,40 @@ export function LoginForm() {
     event.preventDefault();
     setPending(true);
     setMessage(null);
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, next }),
-    });
-    const payload = (await response.json()) as {
-      error?: string;
-      redirect?: string;
-    };
-    setPending(false);
-    if (!response.ok) {
-      setMessage(payload.error ?? "Could not sign in.");
+    
+    if (!email || !password) {
+      setPending(false);
+      setMessage("Email and password are required.");
       return;
     }
-    window.location.href = payload.redirect ?? "/";
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, next }),
+      });
+      
+      const payload = (await response.json()) as {
+        error?: string;
+        redirect?: string;
+      };
+      
+      if (!response.ok) {
+        setPending(false);
+        setMessage(payload.error ?? "Could not sign in. Please try again.");
+        console.error("[Login Error]", response.status, payload.error);
+        return;
+      }
+      
+      // Successful login - redirect
+      const redirectUrl = payload.redirect ?? "/";
+      window.location.href = redirectUrl;
+    } catch (error) {
+      setPending(false);
+      setMessage("Network error. Check your internet connection and try again.");
+      console.error("[Login Network Error]", error);
+    }
   }
 
   return (
@@ -49,20 +68,24 @@ export function LoginForm() {
         <CardHeader>
           <CardTitle>Account Login</CardTitle>
           <CardDescription>
-            Students, staff at participating food businesses (eateries), and administrators use their account email and password here.
+            Enter your email and password to sign in as a student, eatery staff, or administrator.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={signInWithPassword} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="login-email">Email</Label>
+              <Label htmlFor="login-email">Email Address</Label>
               <Input
                 id="login-email"
                 type="email"
+                inputMode="email"
+                placeholder="your.email@hawaii.edu"
                 required
-                autoComplete="username"
+                autoComplete="email"
+                disabled={pending}
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
+                className="text-base"
               />
             </div>
             <div className="space-y-2">
@@ -70,21 +93,24 @@ export function LoginForm() {
               <Input
                 id="login-password"
                 type="password"
+                placeholder="Enter your password"
                 required
                 autoComplete="current-password"
+                disabled={pending}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
+                className="text-base"
               />
             </div>
-            <Button type="submit" className="w-full" disabled={pending}>
-              {pending ? "Signing in…" : "Student Login"}
+            <Button type="submit" className="w-full h-12" disabled={pending}>
+              {pending ? "Signing in…" : "Sign In"}
             </Button>
           </form>
         </CardContent>
       </Card>
 
       {message ? (
-        <p className="text-sm" role="status">
+        <p className={`text-sm font-medium ${message.includes("Could not") || message.includes("Network") || message.includes("required") ? "text-red-600" : "text-blue-600"}`} role="status">
           {message}
         </p>
       ) : null}
