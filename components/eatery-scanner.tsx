@@ -13,17 +13,25 @@ function getCameraErrorMessage(error: unknown): string {
   });
 
   const name = error instanceof DOMException ? error.name : "";
+  const message = error instanceof Error ? error.message : String(error);
+  
   if (name === "NotAllowedError" || name === "SecurityError") {
-    return "Camera permission denied. Tap 'Allow' if a popup appears, or check Chrome Settings > Permissions > Camera.";
+    return "Camera permission was denied or already blocked. Tap the lock/info icon in Chrome's address bar and change Camera to 'Allow', then try again.";
   }
   if (name === "NotFoundError" || name === "DevicesNotFoundError") {
-    return "No camera found on this device.";
+    return "No camera found on this device. Make sure your phone has a working camera.";
   }
   if (name === "NotReadableError" || name === "TrackStartError") {
-    return "Camera is already in use by another app. Close it and try again.";
+    return "Camera is already in use by another app. Close other apps and try again.";
+  }
+  if (message.includes("Permission denied")) {
+    return "Camera permission blocked by your phone settings. Check Chrome Settings → Permissions → Camera.";
+  }
+  if (message.includes("HTTPS")) {
+    return "Camera access requires HTTPS. Make sure you're using https://www.kokuacounter.app (secure connection).";
   }
   if (error instanceof TypeError) {
-    return "Camera API not available. Try a modern browser like Chrome, Safari, or Edge.";
+    return "Camera feature not available. Try a different browser (Chrome, Safari, Edge) or device.";
   }
   return "Could not start camera. Check settings and try again.";
 }
@@ -60,9 +68,15 @@ export function EateryScanner() {
     let permissionStream: MediaStream | null = null;
     
     try {
-      console.log("[Camera] Requesting camera access...");
+      console.log("[Camera] 1. Checking HTTPS context...", { 
+        isSecure: window.isSecureContext,
+        protocol: window.location.protocol,
+        hostname: window.location.hostname 
+      });
       
-      // Request camera permission - this should trigger browser prompt on mobile
+      console.log("[Camera] 2. Requesting camera access (browser will ask for permission)...");
+      
+      // This line should trigger the permission popup on mobile
       permissionStream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: "environment" },
@@ -72,7 +86,7 @@ export function EateryScanner() {
         audio: false,
       });
 
-      console.log("[Camera] Permission granted, loading scanner...");
+      console.log("[Camera] 3. Permission granted! Got access to tracks:", permissionStream.getTracks().length);
 
       // Load QR code scanner library
       const { Html5Qrcode } = await import("html5-qrcode");
@@ -82,20 +96,23 @@ export function EateryScanner() {
         throw new DOMException("No camera found on this device.", "NotFoundError");
       }
 
-      console.log("[Camera] Found", cameras.length, "camera(s)");
+      console.log("[Camera] 4. Found", cameras.length, "camera(s):", cameras.map(c => c.label).join(", "));
 
       // Prefer rear/environment camera for phone usage
       const camera = cameras.find((device) => /back|rear|environment/i.test(device.label)) ?? cameras[0];
 
       // Stop the permission check stream before starting the real scanner
-      permissionStream.getTracks().forEach((track) => track.stop());
+      permissionStream.getTracks().forEach((track) => {
+        track.stop();
+        console.log("[Camera] 5. Stopped permission check track:", track.kind);
+      });
       permissionStream = null;
 
       // Initialize scanner
       const scanner = new Html5Qrcode("eatery-qr-reader");
       scannerRef.current = scanner;
       
-      console.log("[Camera] Starting QR scanner with camera:", camera.label);
+      console.log("[Camera] 6. Starting QR scanner with camera:", camera.label);
       
       await scanner.start(
         camera.id,
@@ -142,15 +159,23 @@ export function EateryScanner() {
         () => undefined,
       );
       
-      console.log("[Camera] Scanner started successfully");
+      console.log("[Camera] 7. Scanner started successfully!");
       setScanning(true);
       setStarting(false);
     } catch (error) {
-      console.error("[Camera Error]", error);
+      console.error("[Camera ERROR - Full Details]", {
+        errorName: error instanceof DOMException ? error.name : "Unknown",
+        errorMessage: error instanceof Error ? error.message : String(error),
+        errorType: typeof error,
+        errorStack: error instanceof Error ? error.stack : "No stack",
+      });
+      
       setStarting(false);
       setCameraError(getCameraErrorMessage(error));
     } finally {
-      permissionStream?.getTracks().forEach((track) => track.stop());
+      permissionStream?.getTracks().forEach((track) => {
+        track.stop();
+      });
     }
   }
 
@@ -163,10 +188,14 @@ export function EateryScanner() {
           <p className="text-sm font-medium text-red-900" role="alert">
             {cameraError}
           </p>
-          <p className="text-xs text-red-700 mt-2">
-            On your phone: Look for a permission popup. If you see "Allow camera access?" tap <strong>Allow</strong>. 
-            If nothing appears, check Chrome Settings → Permissions → Camera.
-          </p>
+          <div className="text-xs text-red-700 mt-3 space-y-2">
+            <p><strong>Troubleshooting:</strong></p>
+            <ul className="list-disc list-inside space-y-1">
+              <li>On your phone: Look for Chrome's address bar lock icon (🔒) → Camera → change to "Allow"</li>
+              <li>Then refresh this page and try again</li>
+              <li>If you still see errors, close Chrome completely and reopen it</li>
+            </ul>
+          </div>
         </div>
       )}
       
