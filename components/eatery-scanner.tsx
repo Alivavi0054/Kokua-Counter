@@ -38,8 +38,13 @@ export function EateryScanner() {
 
   async function startScanner() {
     setCameraError(null);
-    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
-      setCameraError("Camera access on a phone requires a secure HTTPS connection. Open this page over HTTPS, then tap Enable camera.");
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError("This browser does not support camera access. Use a newer browser or Chrome/Safari on a phone.");
+      return;
+    }
+
+    if (!window.isSecureContext) {
+      setCameraError("Camera access requires HTTPS. Use https://www.kokuacounter.app on a phone, or http://localhost:3000 on your computer. Localhost on a phone requires HTTPS.");
       return;
     }
 
@@ -109,13 +114,15 @@ export function EateryScanner() {
   return (
     <div className="space-y-4">
       <div id="eatery-qr-reader" className="min-h-[65vh] w-full overflow-hidden rounded-md border bg-black" aria-label="Meal pass camera scanner" />
-      {cameraError ? <p className="text-sm text-destructive" role="alert">{cameraError}</p> : null}
+      {cameraError ? <p className="text-sm text-destructive font-medium" role="alert">{cameraError}</p> : null}
       {!scanning ? (
-        <Button size="lg" variant="outline" onClick={() => void startScanner()} disabled={starting}>
-          {starting ? "Requesting camera…" : cameraError ? "Try camera again" : "Enable camera"}
+        <Button size="lg" variant={starting ? "secondary" : cameraError ? "destructive" : "default"} onClick={() => void startScanner()} disabled={starting}>
+          {starting ? "Allow camera access in the popup above…" : cameraError ? "Retry camera" : "Enable camera"}
         </Button>
       ) : null}
-      <p className="text-sm text-muted-foreground">Center the student’s QR code in the camera frame. Scanned content is used only to verify the pass.</p>
+      {starting && <p className="text-xs text-muted-foreground">A browser popup is asking for camera permission. Tap "Allow" to continue.</p>}
+      {scanning && <p className="text-xs text-green-700">✓ Camera is active. Center the QR code in the frame.</p>}
+      {!scanning && !starting && <p className="text-sm text-muted-foreground">Center the student's QR code in the camera frame. Scanned content is used only to verify the pass.</p>}
     </div>
   );
 }

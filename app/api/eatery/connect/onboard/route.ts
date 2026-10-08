@@ -33,19 +33,28 @@ export async function POST(request: Request) {
   let accountId = eatery.stripe_connect_account_id;
 
   if (!accountId) {
-    const account = await stripe.accounts.create({
-      type: "express",
-      email: eatery.contact_email,
-      business_type: "company",
-      company: { name: eatery.name },
-    });
-    accountId = account.id;
-    const { error: updateError } = await admin
-      .from("eateries")
-      .update({ stripe_connect_account_id: accountId })
-      .eq("id", eatery.id);
-    if (updateError) {
-      return NextResponse.json({ error: "Could not save payout account." }, { status: 500 });
+    try {
+      const account = await stripe.accounts.create({
+        type: "express",
+        email: eatery.contact_email,
+        business_type: "company",
+        company: { name: eatery.name },
+      });
+      accountId = account.id;
+      const { error: updateError } = await admin
+        .from("eateries")
+        .update({ stripe_connect_account_id: accountId })
+        .eq("id", eatery.id);
+      if (updateError) {
+        return NextResponse.json({ error: "Could not save payout account." }, { status: 500 });
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("not signed up for Connect")) {
+        return NextResponse.json({
+          error: "Stripe Connect must be enabled. Contact support: enable Connect on https://dashboard.stripe.com/connect or in test mode via Stripe CLI.",
+        }, { status: 403 });
+      }
+      throw error;
     }
   }
 

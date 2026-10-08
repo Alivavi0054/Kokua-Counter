@@ -14,7 +14,12 @@ export function ConnectPayoutsButton({ isConnected }: { isConnected: boolean }) 
     const payload = (await response.json().catch(() => ({}))) as { url?: string; error?: string };
     if (!response.ok || !payload.url) {
       setPending(false);
-      setError(payload.error ?? "Could not start payout setup.");
+      const errorMsg = payload.error ?? "Could not start payout setup.";
+      if (response.status === 403) {
+        setError(`${errorMsg} Run: npm run setup:connect`);
+      } else {
+        setError(errorMsg);
+      }
       return;
     }
     window.location.href = payload.url;
