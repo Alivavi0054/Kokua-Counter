@@ -3,7 +3,7 @@ import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 import { createClient } from "@/lib/supabase/server";
-import { isHawaiiEduEmail } from "@/lib/auth/roles";
+import { isHawaiiEduEmail, isUserRole, roleHome } from "@/lib/auth/roles";
 import { rateLimit } from "@/lib/rate-limit";
 import { getClientIp, isAllowedRedirect, parseJsonBody, verifyOriginMatches } from "@/lib/security";
 import { getAppUrl } from "@/lib/env";
@@ -51,26 +51,31 @@ export async function POST(request: Request) {
     data: { user },
   } = await supabase.auth.getUser();
   const { data: profile } = user
-    ? await supabase.from("users").select("role").eq("id", user.id).maybeSingle()
+    ? await supabase.from("users").select("role, is_active").eq("id", user.id).maybeSingle()
     : { data: null };
 
-  if (profile?.role === "student" && !isHawaiiEduEmail(email)) {
+  // A valid password is not enough: the account needs an active profile with a known role.
+  if (!user || !profile || !isUserRole(profile.role)) {
     await supabase.auth.signOut();
-    return NextResponse.json(
-      { error: "Use a University of Hawaiʻi email ending in @hawaii.edu." },
-      { status: 403 },
-    );
+    return NextResponse.json({ error: "This account is not set up yet. Contact the program administrator." }, { status: 403 });
+  }
+  if (!profile.is_active) {
+    await supabase.auth.signOut();
+    return NextResponse.json({ error: "This account has been deactivated. Contact the program administrator." }, { status: 403 });
+  }
+  if (profile.role === "student") {
+    if (!isHawaiiEduEmail(email)) {
+      await supabase.auth.signOut();
+      return NextResponse.json(
+        { error: "Use a University of Hawaiʻi email ending in @hawaii.edu." },
+        { status: 403 },
+      );
+    }
+    if (!user.email_confirmed_at) {
+      await supabase.auth.signOut();
+      return NextResponse.json({ error: "Confirm your email address first, then sign in." }, { status: 403 });
+    }
   }
 
-  const redirect =
-    next ??
-    (profile?.role === "admin"
-      ? "/admin"
-      : profile?.role === "eatery"
-        ? "/eatery"
-        : profile?.role === "student"
-          ? "/student"
-          : "/");
-
-  return NextResponse.json({ redirect });
+  return NextResponse.json({ redirect: next ?? roleHome(profile.role) });
 }
