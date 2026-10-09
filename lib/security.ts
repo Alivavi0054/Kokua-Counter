@@ -7,7 +7,14 @@ export function isAllowedRedirect(value: string | null | undefined): string | nu
   if (!value) return "/";
 
   const candidate = value.trim();
-  if (!candidate || candidate.startsWith("//") || candidate.startsWith("\\")) {
+  if (!candidate || !candidate.startsWith("/") || candidate.startsWith("//")) {
+    return null;
+  }
+
+  // Browsers treat "\" like "/" and silently drop tabs/newlines inside URLs, so
+  // "/\evil.com" or "/\t/evil.com" would become "//evil.com". Reject them outright,
+  // including percent-encoded forms.
+  if (/[\\\u0000-\u001f\u007f]/.test(candidate) || /%5c|%09|%0a|%0d|%00/i.test(candidate)) {
     return null;
   }
 
@@ -15,7 +22,13 @@ export function isAllowedRedirect(value: string | null | undefined): string | nu
     return null;
   }
 
-  if (!candidate.startsWith("/")) {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(candidate);
+  } catch {
+    return null;
+  }
+  if (decoded.startsWith("//") || decoded.includes("\\") || decoded.includes("..")) {
     return null;
   }
 

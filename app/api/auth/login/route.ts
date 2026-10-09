@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 import { createClient } from "@/lib/supabase/server";
 import { isHawaiiEduEmail } from "@/lib/auth/roles";
 import { rateLimit } from "@/lib/rate-limit";
-import { parseJsonBody, verifyOriginMatches } from "@/lib/security";
+import { isAllowedRedirect, parseJsonBody, verifyOriginMatches } from "@/lib/security";
 import { getAppUrl } from "@/lib/env";
 
 const bodySchema = z.object({
@@ -13,11 +13,6 @@ const bodySchema = z.object({
   password: z.string().min(1),
   next: z.string().optional(),
 });
-
-function safeNext(path: string | undefined) {
-  if (!path || !path.startsWith("/") || path.startsWith("//")) return null;
-  return path;
-}
 
 export async function POST(request: Request) {
   if (!verifyOriginMatches(request, getAppUrl("login form requests"))) {
@@ -44,7 +39,7 @@ export async function POST(request: Request) {
   }
 
   const supabase = await createClient();
-  const next = safeNext(parsedBody.data.next);
+  const next = parsedBody.data.next ? isAllowedRedirect(parsedBody.data.next) : null;
 
   const { error } = await supabase.auth.signInWithPassword({
     email,

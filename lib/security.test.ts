@@ -33,6 +33,33 @@ describe("security helpers", () => {
     expect(isAllowedRedirect("/student?next=/admin")).toBe("/student?next=/admin");
   });
 
+  it("rejects open-redirect tricks (backslashes, protocol-relative, control chars, encodings)", () => {
+    const evil = [
+      "/\\evil.com",
+      "/\\/evil.com",
+      "\\evil.com",
+      "//evil.com",
+      "///evil.com",
+      "/%5Cevil.com",
+      "/%5cevil.com",
+      "/%2F/evil.com",
+      "/%2f%2fevil.com",
+      "https://evil.com",
+      "javascript:alert(1)",
+      "evil.com",
+      "/\t/evil.com",
+      "/\n/evil.com",
+      "/%09/evil.com",
+      "/foo/../../evil",
+      "/student\\..\\admin",
+    ];
+    for (const value of evil) {
+      expect(isAllowedRedirect(value), value).toBeNull();
+    }
+    expect(isAllowedRedirect("/eatery/scan?x=1")).toBe("/eatery/scan?x=1");
+    expect(isAllowedRedirect(undefined)).toBe("/");
+  });
+
   it("compares secrets with constant-time semantics", () => {
     expect(safeTimingCompare("alpha", "alpha")).toBe(true);
     expect(safeTimingCompare("alpha", "beta")).toBe(false);

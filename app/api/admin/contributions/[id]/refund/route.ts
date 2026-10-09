@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiRole } from "@/lib/auth/guards";
 import { rateLimit } from "@/lib/rate-limit";
+import { buildRefundIdempotencyKey } from "@/lib/refund";
 import { getStripe } from "@/lib/stripe/client";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -69,11 +70,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   try {
-    await getStripe().refunds.create({
-      payment_intent: contribution.stripe_payment_intent_id,
-      amount: amountCents,
-      metadata: { contribution_id: contribution.id },
-    });
+    await getStripe().refunds.create(
+      {
+        payment_intent: contribution.stripe_payment_intent_id,
+        amount: amountCents,
+        metadata: { contribution_id: contribution.id },
+      },
+      {
+        idempotencyKey: buildRefundIdempotencyKey({
+          contributionId: contribution.id,
+          amountCents,
+          refundedAmountCents: contribution.refunded_amount_cents,
+        }),
+      },
+    );
   } catch {
     return NextResponse.json({ error: "Could not start the refund with Stripe." }, { status: 502 });
   }
