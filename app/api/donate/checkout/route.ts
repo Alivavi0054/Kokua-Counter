@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { MAX_DONATION_CENTS, MEAL_VALUE_CENTS } from "@/lib/constants";
+import { describeError } from "@/lib/errors";
 import { getAppUrl } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -65,6 +66,7 @@ export async function POST(request: Request) {
     .single();
 
   if (error || !contribution) {
+    console.error("donate/checkout: contribution insert failed", describeError(error));
     return NextResponse.json(
       { error: "Could not start donation." },
       { status: 500 },
@@ -105,8 +107,9 @@ export async function POST(request: Request) {
       .update({ status: "failed" })
       .eq("id", contribution.id)
       .eq("status", "pending");
+    console.error("donate/checkout: Stripe session creation failed", describeError(error));
     if (error instanceof Error && error.message.startsWith("Missing ")) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Could not start checkout." }, { status: 500 });
     }
     return NextResponse.json({ error: "Could not start checkout." }, { status: 502 });
   }

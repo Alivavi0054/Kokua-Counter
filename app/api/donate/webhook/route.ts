@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
+import { describeError } from "@/lib/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { asStripeId, constructStripeEvent } from "@/lib/stripe/webhook";
 import { recordCredit, recordRefund, recordRefundReversal } from "@/lib/ledger";
@@ -80,10 +81,8 @@ export async function POST(request: Request) {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
 
   if (!webhookSecret) {
-    return NextResponse.json(
-      { error: "Missing STRIPE_WEBHOOK_SECRET; required for Stripe webhook verification." },
-      { status: 500 },
-    );
+    console.error("donate/webhook: STRIPE_WEBHOOK_SECRET is not configured");
+    return NextResponse.json({ error: "Webhook is not configured." }, { status: 500 });
   }
 
   let event: Stripe.Event;
@@ -91,7 +90,8 @@ export async function POST(request: Request) {
     event = constructStripeEvent(rawBody, signature, webhookSecret);
   } catch (error) {
     if (error instanceof Error && error.message.startsWith("Missing ")) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("donate/webhook: configuration error", describeError(error));
+      return NextResponse.json({ error: "Webhook is not configured." }, { status: 500 });
     }
     return NextResponse.json({ error: "Invalid signature." }, { status: 400 });
   }
@@ -127,7 +127,8 @@ export async function POST(request: Request) {
       default:
         break;
     }
-  } catch {
+  } catch (error) {
+    console.error("donate/webhook: handler failed", { eventId: event.id, eventType: event.type }, describeError(error));
     return NextResponse.json({ error: "Webhook handler failed." }, { status: 500 });
   }
 

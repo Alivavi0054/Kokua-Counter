@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { describeError } from "@/lib/errors";
 import { getCronSecret } from "@/lib/env";
 import { expireStaleQrs } from "@/lib/ledger";
 import { safeTimingCompare } from "@/lib/security";
@@ -17,8 +18,8 @@ export async function GET(request: Request) {
   try {
     secret = getCronSecret();
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Cron authorization is not configured.";
-    return NextResponse.json({ error: message }, { status: 401 });
+    console.error("cron/expire-qrs: authorization is not configured", describeError(error));
+    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
   if (!validCronSecret(request, secret)) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
@@ -26,7 +27,8 @@ export async function GET(request: Request) {
   try {
     const expiredCount = await expireStaleQrs();
     return NextResponse.json({ expired_count: expiredCount });
-  } catch {
+  } catch (error) {
+    console.error("cron/expire-qrs: expiry failed", describeError(error));
     return NextResponse.json({ error: "Could not expire meal passes." }, { status: 500 });
   }
 }
