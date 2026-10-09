@@ -8,7 +8,7 @@ import { createContribution } from "@/lib/finance";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe/client";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimitShared } from "@/lib/rate-limit-shared";
 import { getClientIp, parseJsonBody, verifyOriginMatches } from "@/lib/security";
 import { mealsFromCents } from "@/lib/utils";
 
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
   }
 
   const clientIp = getClientIp(request);
-  const limited = rateLimit(`donate:${clientIp}`, 10, 60_000);
+  const limited = await rateLimitShared(`donate:${clientIp}`, 10, 60_000);
   if (!limited.ok) {
     return NextResponse.json({ error: "Too many requests." }, { status: 429 });
   }

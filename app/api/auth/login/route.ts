@@ -4,7 +4,7 @@ import { z } from "zod";
 export const dynamic = "force-dynamic";
 import { createClient } from "@/lib/supabase/server";
 import { isHawaiiEduEmail, isUserRole, roleHome } from "@/lib/auth/roles";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimitShared } from "@/lib/rate-limit-shared";
 import { getClientIp, isAllowedRedirect, parseJsonBody, verifyOriginMatches } from "@/lib/security";
 import { getAppUrl } from "@/lib/env";
 
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
 
   const clientIp = getClientIp(request);
 
-  const limited = rateLimit(`auth-login:${clientIp}`, 8, 60_000);
+  const limited = await rateLimitShared(`auth-login:${clientIp}`, 8, 60_000);
   if (!limited.ok) {
     return NextResponse.json({ error: "Too many sign-in attempts. Please wait a minute and try again." }, { status: 429 });
   }

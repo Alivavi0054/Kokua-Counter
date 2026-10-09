@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createSchoolRegistration } from "@/lib/organization-store";
 import { describeError } from "@/lib/errors";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimitShared } from "@/lib/rate-limit-shared";
 import { getClientIp } from "@/lib/security";
 
 const schoolRegistrationSchema = z.object({
@@ -21,7 +21,7 @@ export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   const clientIp = getClientIp(request);
-  const limited = rateLimit(`school-register:${clientIp}`, 5, 60_000);
+  const limited = await rateLimitShared(`school-register:${clientIp}`, 5, 60_000);
   if (!limited.ok) {
     return NextResponse.json({ error: "Too many requests. Please wait and try again." }, { status: 429 });
   }

@@ -35,23 +35,18 @@ This project handles student meal access, donations, and a small ledger. The pri
 
 ## Rate limiting
 
-- `lib/rate-limit.ts` uses an **in-memory store per server instance** by default. On Vercel every
-  serverless instance has its own counters and they reset on cold start, so the real limit is
-  higher than the configured number (e.g. login 8/min per instance, not 8/min overall). It slows
-  casual abuse but is not a hard brute-force defence.
-- The client key comes from `getClientIp()` in `lib/security.ts`: `x-vercel-forwarded-for`, then
-  `x-real-ip` (both set by the platform), then the **last** `x-forwarded-for` entry. The first
-  `x-forwarded-for` entry is client-controlled and is never trusted. Without any valid IP the key
-  is `local`, which means all such requests share one bucket.
-- The store sits behind the `RateLimitStore` interface and `createRateLimiter(store)`. To get shared
-  limits without new infrastructure code in the routes, the upgrade path is Upstash Redis (or any
-  Redis): implement a store, or use `@upstash/ratelimit` directly, backed by `UPSTASH_REDIS_REST_URL`
-  and `UPSTASH_REDIS_REST_TOKEN`. Note the current interface is synchronous, so a network-backed store
-  requires making `rateLimit()` async and `await`ing it in the callers (login, donate checkout,
-  school register and the admin routes). A Supabase table with an atomic upsert RPC is an
-  alternative that needs no new vendor. Neither is implemented yet and no new dependency was added.
-- For brute-force protection on login, also consider Supabase Auth's built-in rate limits and
-  CAPTCHA settings, which are shared across instances.
+- **Public endpoints** (sign-in, donation checkout, school registration) use a limiter shared by every
+  serverless instance: `rateLimitShared()` in `lib/rate-limit-shared.ts`, backed by the `rate_limits` table and
+  the atomic `rate_limit_hit` SQL function (migration 0013, service role only). Counts are exact even under
+  concurrent requests. If the database is unreachable it **fails open** to the per-instance limiter below (and logs
+  it) so an outage cannot lock every visitor out.
+- **Authenticated routes** (admin tools, QR generate/redeem/status) still use the in-memory limiter in
+  `lib/rate-limit.ts`. It is per instance and resets on cold start, so treat it as a speed bump; these routes are
+  also protected by role checks and, for passes, by database-enforced daily limits.
+- The client key comes from `getClientIp()` in `lib/security.ts`: `x-vercel-forwarded-for`, then `x-real-ip` (both
+  set by the platform), then the **last** `x-forwarded-for` entry. The first `x-forwarded-for` entry is
+  client-controlled and is never trusted. Without any valid IP the key is `local`, so all such requests share one bucket.
+- Supabase Auth also has its own rate limits and CAPTCHA settings that apply across instances; keep them enabled.
 
 ## Secret rotation
 

@@ -576,6 +576,10 @@ export type Database = {
         Args: { p_stripe_dispute_id: string; p_outcome: "won" | "lost"; p_dispute_fee_cents?: number | null };
         Returns: undefined;
       };
+      rate_limit_hit: {
+        Args: { p_key: string; p_limit: number; p_window_ms: number };
+        Returns: Json;
+      };
       finance_summary: { Args: Record<PropertyKey, never>; Returns: Json };
       finance_reconciliation: { Args: Record<PropertyKey, never>; Returns: Json };
       contributions_missing_processor_fee: {
