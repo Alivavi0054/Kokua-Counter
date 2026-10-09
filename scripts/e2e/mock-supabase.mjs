@@ -14,6 +14,9 @@ const byId = Object.fromEntries(Object.entries(accounts).map(([email, a]) => [a.
 const userJson = (a) => ({ id: a.id, aud: "authenticated", role: "authenticated", email: a.email, email_confirmed_at: a.confirmed ? "2026-10-01T00:00:00Z" : null, app_metadata: {}, user_metadata: {}, created_at: "2026-10-01T00:00:00Z" });
 const sampleUsers = Object.values(byId).filter((a) => a.role).map((a) => ({ id: a.id, role: a.role, display_name: a.name, is_active: a.active, created_at: "2026-10-02T10:00:00Z" }));
 
+// One in-memory student pass, so the browser tests can request a pass and then "redeem" it.
+const qr = { id: null, expiresAt: null, status: "active", redeemedAt: null };
+
 function rows(table, url) {
   const q = url.searchParams;
   if (table === "users") {
@@ -28,8 +31,14 @@ function rows(table, url) {
     return [eatery, { ...eatery, id: "e2", name: "Aloha Plate Lunch", island: "Maui", stripe_connect_account_id: "acct_test_123" }];
   }
   if (table === "public_eateries") return [{ name: "Kai's Poi Shack", slug: "kais-poi-shack", island: "Oʻahu", address: "123 Kapiʻolani Blvd" }, { name: "Aloha Plate Lunch", slug: "aloha-plate-lunch", island: "Maui", address: "45 Front St" }];
+  if (table === "qr_codes" && (url.searchParams.get("id") || "").startsWith("eq.") && qr.id) {
+    return [{ id: qr.id, status: qr.status, expires_at: qr.expiresAt, redeemed_at: qr.redeemedAt, created_at: new Date().toISOString() }];
+  }
   if (table === "qr_codes") return [{ id: "q1", status: "redeemed", created_at: "2026-10-07T18:00:00Z", expires_at: "2026-10-07T18:10:00Z", redeemed_at: "2026-10-07T18:04:00Z" }, { id: "q2", status: "expired", created_at: "2026-10-06T18:00:00Z", expires_at: "2026-10-06T18:10:00Z", redeemed_at: null }];
-  if (table === "contributions") return [{ id: "c1", amount_cents: 2400, refunded_amount_cents: 0, status: "completed", created_at: "2026-10-07T12:00:00Z" }, { id: "c2", amount_cents: 800, refunded_amount_cents: 800, status: "refunded", created_at: "2026-10-06T12:00:00Z" }];
+  if (table === "contributions") return [
+    { id: "c1", amount_cents: 800, operational_fee_cents: 40, total_charged_cents: 840, fee_rate_bps: 500, refunded_amount_cents: 0, fee_refunded_cents: 0, status: "completed", failure_reason: null, created_at: "2026-10-07T12:00:00Z" },
+    { id: "c2", amount_cents: 800, operational_fee_cents: 40, total_charged_cents: 840, fee_rate_bps: 500, refunded_amount_cents: 800, fee_refunded_cents: 40, status: "refunded", failure_reason: null, created_at: "2026-10-06T12:00:00Z" },
+  ];
   if (table === "redemptions") return [{ id: "r1", eatery_id: "e1", amount_cents: 800, redeemed_at: "2026-10-07T18:04:00Z" }];
   if (table === "fee_settings") return [{ id: "f1", rate_bps: 500, effective_at: "1970-01-01T00:00:00Z", note: "Default 5% operational fee", created_at: "2026-10-01T00:00:00Z" }];
   if (table === "organizations" || table === "school_registrations") return [];
@@ -43,6 +52,16 @@ export function startMock(port) {
     req.on("data", (c) => (body += c));
     req.on("end", () => {
       const send = (status, obj, headers = {}) => { res.writeHead(status, { "content-type": "application/json", ...headers }); res.end(obj === undefined ? "" : JSON.stringify(obj)); };
+      // Test-only controls (never reachable from the app itself).
+      if (url.pathname === "/__mock/redeem") {
+        qr.status = "redeemed";
+        qr.redeemedAt = new Date().toISOString();
+        return send(200, { ok: true });
+      }
+      if (url.pathname === "/__mock/reset") {
+        Object.assign(qr, { id: null, expiresAt: null, status: "active", redeemedAt: null });
+        return send(200, { ok: true });
+      }
       if (url.pathname === "/auth/v1/user") {
         const token = (req.headers.authorization || "").replace("Bearer ", "");
         const a = byId[token.replace("tok-", "")];
@@ -59,6 +78,16 @@ export function startMock(port) {
       if (url.pathname.startsWith("/rest/v1/rpc/")) {
         const fn = url.pathname.split("/").pop();
         if (fn === "current_fee_rate_bps") return send(200, 500);
+        if (fn === "rate_limit_hit") return send(200, { ok: true, retry_after_ms: 0 });
+        if (fn === "create_qr_hold") {
+          if (qr.id && qr.status === "active") return send(200, { ok: false, error_code: "active_pass_exists" });
+          qr.id = "44444444-aaaa-4aaa-8aaa-444444444444";
+          qr.expiresAt = new Date(Date.now() + 30 * 60_000).toISOString();
+          qr.status = "active";
+          qr.redeemedAt = null;
+          return send(200, { ok: true, qr_id: qr.id, expires_at: qr.expiresAt });
+        }
+        if (fn === "redeem_qr") return send(200, { ok: true, redemption_id: "55555555-aaaa-4aaa-8aaa-555555555555", eatery_name: "Kai's Poi Shack", redeemed_at: new Date().toISOString() });
         if (fn === "finance_reconciliation") return send(200, { ok: true, issues: [] });
         if (fn === "contributions_missing_processor_fee") return send(200, []);
         if (fn === "finance_summary") {

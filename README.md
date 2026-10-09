@@ -192,6 +192,7 @@ npm run check:client-secrets
 Additional checks:
 
 - `npm test` runs the unit tests plus real-SQL tests (an in-memory Postgres via PGlite applies every migration). `npm run build && npm run test:permissions` checks every role against every page and API route using a mocked Supabase (dummy credentials only).
+- `npm run build && npm run test:browser` drives the real built site in Chrome (Playwright) as every role, with the mocked Supabase: sign-in, permissions, donation breakdown, student pass, eatery scanner, every admin page, plus WCAG A/AA accessibility scans and screenshots in `test-results/screens/`. Uses the Chrome installed on your machine; no real credentials or network services.
 - `npm run verify` executes the accounting scenarios in [supabase/tests/accounting.sql](supabase/tests/accounting.sql) using `DATABASE_URL`. Use a disposable test database only; the test script is not a production migration.
 - `npm run smoke` checks `/api/health`, unauthenticated QR generation, and cron authorization. The app must be running at `APP_URL` first.
 - `npm run db:setup` applies schema migrations; `npm run db:seed` writes the three test accounts.

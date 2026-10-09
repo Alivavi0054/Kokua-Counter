@@ -67,3 +67,11 @@ This project handles student meal access, donations, and a small ledger. The pri
 - This project intentionally does not expose a general-purpose public API.
 - Production deployment should use a managed Supabase project and hardened infrastructure.
 - QR-based access remains dependent on valid mobile/camera support and HTTPS or localhost.
+
+## Automated checks that guard these controls
+
+- `lib/route-guards.test.ts` fails if any API route lacks a role guard or is not on the explicit public allowlist.
+- `npm run test:permissions` checks every role against every page and API route, login outcomes, and cron endpoints.
+- `npm run test:browser` repeats the important flows in a real browser and scans each page for accessibility problems.
+- `tests/db/*.test.ts` run the actual SQL migrations in an in-memory Postgres: ledger rules, privileges, settlements,
+  rate limits, audit log and receipt claims.

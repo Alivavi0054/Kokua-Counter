@@ -179,7 +179,7 @@ export function EateryScanner() {
 
   return (
     <div className="space-y-4">
-      <div id="eatery-qr-reader" className="min-h-[60vh] w-full overflow-hidden rounded-xl border bg-black shadow-soft" aria-label="Meal pass camera scanner" />
+      <div id="eatery-qr-reader" role="region" className="min-h-[60vh] w-full overflow-hidden rounded-xl border bg-black shadow-soft" aria-label="Meal pass camera scanner" />
 
       {cameraError ? (
         <Alert variant="destructive" className="space-y-3">

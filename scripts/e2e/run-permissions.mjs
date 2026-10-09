@@ -3,6 +3,7 @@
 // Uses dummy credentials only; nothing talks to real Supabase or Stripe.
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
+import { e2eEnv } from "./env.mjs";
 
 if (!existsSync(".next/BUILD_ID")) {
   console.error("No production build found. Run `npm run build` first.");
@@ -11,20 +12,7 @@ if (!existsSync(".next/BUILD_ID")) {
 
 const PORT = process.env.E2E_APP_PORT ?? "3999";
 const MOCK_PORT = process.env.E2E_MOCK_PORT ?? "54399";
-const env = {
-  ...process.env,
-  NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${MOCK_PORT}`,
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: "e2e-anon-key",
-  SUPABASE_SERVICE_ROLE_KEY: "e2e-service-key",
-  APP_URL: `http://localhost:${PORT}`,
-  // Assembled from parts so the repo secret scanner does not flag a fake test key.
-  STRIPE_SECRET_KEY: ["sk", "test", "example", "dummy"].join("_"),
-  STRIPE_WEBHOOK_SECRET: "whsec_example_dummy",
-  CRON_SECRET: "e2e-cron-secret",
-  ENABLE_DEV_LOGIN: "false",
-  E2E_BASE_URL: `http://localhost:${PORT}`,
-  E2E_MOCK_PORT: MOCK_PORT,
-};
+const env = e2eEnv({ appPort: PORT, mockPort: MOCK_PORT });
 
 const server = spawn("npx", ["next", "start", "-p", PORT], { env, stdio: ["ignore", "pipe", "pipe"] });
 let ready = false;

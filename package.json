@@ -18,7 +18,8 @@
     "audit:ci": "npm audit --omit=dev --audit-level=high",
     "smoke": "tsx --env-file=.env.local scripts/smoke.ts",
     "setup:connect": "node scripts/enable-stripe-connect.mjs",
-    "test:permissions": "node scripts/e2e/run-permissions.mjs"
+    "test:permissions": "node scripts/e2e/run-permissions.mjs",
+    "test:browser": "playwright test"
   },
   "dependencies": {
     "@radix-ui/react-label": "^2.1.16",
@@ -40,7 +41,9 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@electric-sql/pglite": "^0.5.8",
+    "@playwright/test": "^1.64.0",
     "@tailwindcss/postcss": "^4.1.11",
     "@types/node": "^24.19.1",
     "@types/pg": "^8.15.5",
