@@ -2,6 +2,7 @@
 // Used by Playwright (see playwright.config.ts). Requires `npm run build` first.
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
 import { e2eEnv } from "./env.mjs";
 import { startMock } from "./mock-supabase.mjs";
 
@@ -10,12 +11,15 @@ if (!existsSync(".next/BUILD_ID")) {
   process.exit(2);
 }
 
+// Run Next directly with this Node binary (not through npx) so stopping it really frees the port.
+const nextBin = createRequire(import.meta.url).resolve("next/dist/bin/next");
+
 const appPort = process.env.E2E_APP_PORT ?? "3999";
 const mockPort = process.env.E2E_MOCK_PORT ?? "54399";
 const env = e2eEnv({ appPort, mockPort });
 
 const mock = await startMock(Number(mockPort));
-const server = spawn("npx", ["next", "start", "-p", appPort], { env, stdio: "inherit" });
+const server = spawn(process.execPath, [nextBin, "start", "-p", appPort], { env, stdio: "inherit" });
 
 const stop = () => {
   server.kill("SIGTERM");
