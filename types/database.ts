@@ -287,6 +287,94 @@ export type Database = {
         };
         Relationships: [];
       };
+      organizations: {
+        Row: {
+          id: string;
+          name: string;
+          mission: string | null;
+          contact_name: string;
+          email: string;
+          phone: string | null;
+          city: string | null;
+          state: string | null;
+          website: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          mission?: string | null;
+          contact_name: string;
+          email: string;
+          phone?: string | null;
+          city?: string | null;
+          state?: string | null;
+          website?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          name?: string;
+          mission?: string | null;
+          contact_name?: string;
+          email?: string;
+          phone?: string | null;
+          city?: string | null;
+          state?: string | null;
+          website?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      school_registrations: {
+        Row: {
+          id: string;
+          school_name: string;
+          contact_name: string;
+          email: string;
+          phone: string | null;
+          school_type: string | null;
+          students: string | null;
+          city: string | null;
+          state: string | null;
+          message: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          school_name: string;
+          contact_name: string;
+          email: string;
+          phone?: string | null;
+          school_type?: string | null;
+          students?: string | null;
+          city?: string | null;
+          state?: string | null;
+          message?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          school_name?: string;
+          contact_name?: string;
+          email?: string;
+          phone?: string | null;
+          school_type?: string | null;
+          students?: string | null;
+          city?: string | null;
+          state?: string | null;
+          message?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       pool_balance: {

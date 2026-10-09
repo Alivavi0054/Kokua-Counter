@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiRole } from "@/lib/auth/guards";
+import { describeError } from "@/lib/errors";
 import { createOrganization } from "@/lib/organization-store";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -42,17 +43,22 @@ export async function POST(request: Request) {
   }
 
   const organization = parsed.data;
-  await createOrganization({
-    name: organization.name,
-    mission: organization.mission || undefined,
-    contactName: organization.contactName,
-    email: organization.email,
-    phone: organization.phone || undefined,
-    city: organization.city || undefined,
-    state: organization.state || undefined,
-    website: organization.website || undefined,
-    notes: organization.notes || undefined,
-  });
+  try {
+    await createOrganization({
+      name: organization.name,
+      mission: organization.mission || undefined,
+      contactName: organization.contactName,
+      email: organization.email,
+      phone: organization.phone || undefined,
+      city: organization.city || undefined,
+      state: organization.state || undefined,
+      website: organization.website || undefined,
+      notes: organization.notes || undefined,
+    });
+  } catch (error) {
+    console.error("admin/organizations: create failed", describeError(error));
+    return NextResponse.json({ error: "Could not create the organization." }, { status: 500 });
+  }
 
   return NextResponse.json({ message: "Organization created successfully." });
 }
