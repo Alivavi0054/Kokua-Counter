@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireApiRole } from "@/lib/auth/guards";
 import { createSettlement, markSettlementResult } from "@/lib/ledger";
 import { rateLimit } from "@/lib/rate-limit";
+import { settleEatery } from "@/lib/settlement";
 import { getStripe } from "@/lib/stripe/client";
 
 const uuidSchema = z.string().uuid();
@@ -30,31 +31,42 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
 
-  const created = await createSettlement(id);
-  if (!created.ok) {
-    return NextResponse.json({ error: errorMessages[created.error_code] }, { status: 409 });
+  let stripe: ReturnType<typeof getStripe>;
+  try {
+    stripe = getStripe();
+  } catch (error) {
+    console.error("settle: Stripe is not configured", error instanceof Error ? error.message : "unknown");
+    return NextResponse.json({ error: "Payouts are unavailable right now." }, { status: 503 });
   }
 
-  try {
-    const transfer = await getStripe().transfers.create({
-      amount: created.amount_cents,
-      currency: "usd",
-      destination: created.stripe_connect_account_id,
-      metadata: { settlement_id: created.settlement_id },
-    });
-    await markSettlementResult({
-      settlementId: created.settlement_id,
-      status: "paid",
-      stripeTransferId: transfer.id,
-    });
-  } catch {
-    await markSettlementResult({ settlementId: created.settlement_id, status: "failed" });
+  const result = await settleEatery(id, {
+    createSettlement,
+    markSettlementResult,
+    stripe,
+    log: (message, detail) => console.error(`settle: ${message}`, detail),
+  });
+
+  if (result.status === "not_settleable") {
+    return NextResponse.json({ error: errorMessages[result.errorCode] }, { status: 409 });
+  }
+  if (result.status === "transfer_failed") {
     return NextResponse.json({ error: "Could not complete the payout transfer." }, { status: 502 });
+  }
+  if (result.status === "needs_reconciliation") {
+    return NextResponse.json(
+      {
+        error:
+          "The payout may have been sent, but it could not be confirmed in the ledger. Do not retry. Check Stripe and reconcile this settlement manually.",
+        settlement_id: result.settlementId,
+        transfer_id: result.transferId,
+      },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json({
     message: "Settlement completed.",
-    settlement_id: created.settlement_id,
-    amount_cents: created.amount_cents,
+    settlement_id: result.settlementId,
+    amount_cents: result.amountCents,
   });
 }
