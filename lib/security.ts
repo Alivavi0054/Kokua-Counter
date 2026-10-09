@@ -1,4 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
+import { isIP } from "node:net";
 import { z } from "zod";
 
 export const MAX_JSON_BODY_BYTES = 1_000_000;
@@ -38,6 +39,32 @@ export function isAllowedRedirect(value: string | null | undefined): string | nu
   }
 
   return normalized || "/";
+}
+
+function validIp(value: string | null | undefined): string | null {
+  const candidate = value?.trim();
+  return candidate && isIP(candidate) ? candidate : null;
+}
+
+/**
+ * Best-effort client IP for rate limiting. Prefers headers the hosting platform sets
+ * itself (x-vercel-forwarded-for, x-real-ip). If only x-forwarded-for is present we use its
+ * LAST entry (appended by the nearest proxy); the first entry is client-controlled and
+ * must not be trusted. Falls back to "local" when no valid IP is available.
+ */
+export function getClientIp(request: Request): string {
+  const headers = request.headers;
+  const platformIp = validIp(headers.get("x-vercel-forwarded-for")?.split(",")[0]) ?? validIp(headers.get("x-real-ip"));
+  if (platformIp) return platformIp;
+
+  const forwarded = headers.get("x-forwarded-for");
+  if (forwarded) {
+    const parts = forwarded.split(",");
+    const nearestProxyIp = validIp(parts[parts.length - 1]);
+    if (nearestProxyIp) return nearestProxyIp;
+  }
+
+  return "local";
 }
 
 export function verifyOriginMatches(request: Request, appUrl: string): boolean {

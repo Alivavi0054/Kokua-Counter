@@ -7,12 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe/client";
 import { rateLimit } from "@/lib/rate-limit";
-import { parseJsonBody, verifyOriginMatches } from "@/lib/security";
-
-function getClientIp(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-for") ?? request.headers.get("x-real-ip") ?? "local";
-  return forwarded.split(",")[0].trim() || "local";
-}
+import { getClientIp, parseJsonBody, verifyOriginMatches } from "@/lib/security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

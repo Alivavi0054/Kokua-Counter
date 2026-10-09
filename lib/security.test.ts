@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { rateLimit } from "@/lib/rate-limit";
-import { isAllowedRedirect, parseJsonBody, safeTimingCompare, verifyOriginMatches } from "@/lib/security";
+import { getClientIp, isAllowedRedirect, parseJsonBody, safeTimingCompare, verifyOriginMatches } from "@/lib/security";
 import { detectSecretPatterns } from "@/scripts/check-secrets";
 
 describe("security helpers", () => {
@@ -58,6 +58,18 @@ describe("security helpers", () => {
     }
     expect(isAllowedRedirect("/eatery/scan?x=1")).toBe("/eatery/scan?x=1");
     expect(isAllowedRedirect(undefined)).toBe("/");
+  });
+
+  it("derives the client IP from trusted headers and ignores spoofed x-forwarded-for entries", () => {
+    const req = (headers: Record<string, string>) => new Request("https://app.example.com/x", { headers });
+
+    expect(getClientIp(req({ "x-vercel-forwarded-for": "203.0.113.7", "x-forwarded-for": "6.6.6.6, 203.0.113.7" }))).toBe("203.0.113.7");
+    expect(getClientIp(req({ "x-real-ip": "203.0.113.8", "x-forwarded-for": "6.6.6.6" }))).toBe("203.0.113.8");
+    // The first x-forwarded-for entry is client-controlled; use the nearest proxy's (last) entry.
+    expect(getClientIp(req({ "x-forwarded-for": "6.6.6.6, 198.51.100.4" }))).toBe("198.51.100.4");
+    expect(getClientIp(req({ "x-real-ip": "2001:db8::1" }))).toBe("2001:db8::1");
+    expect(getClientIp(req({ "x-real-ip": "not-an-ip", "x-forwarded-for": "garbage" }))).toBe("local");
+    expect(getClientIp(req({}))).toBe("local");
   });
 
   it("compares secrets with constant-time semantics", () => {

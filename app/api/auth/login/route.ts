@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 import { createClient } from "@/lib/supabase/server";
 import { isHawaiiEduEmail } from "@/lib/auth/roles";
 import { rateLimit } from "@/lib/rate-limit";
-import { isAllowedRedirect, parseJsonBody, verifyOriginMatches } from "@/lib/security";
+import { getClientIp, isAllowedRedirect, parseJsonBody, verifyOriginMatches } from "@/lib/security";
 import { getAppUrl } from "@/lib/env";
 
 const bodySchema = z.object({
@@ -19,9 +19,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request." }, { status: 403 });
   }
 
-  const clientIp = (request.headers.get("x-forwarded-for") ?? request.headers.get("x-real-ip") ?? "local")
-    .split(",")[0]
-    .trim() || "local";
+  const clientIp = getClientIp(request);
 
   const limited = rateLimit(`auth-login:${clientIp}`, 8, 60_000);
   if (!limited.ok) {
