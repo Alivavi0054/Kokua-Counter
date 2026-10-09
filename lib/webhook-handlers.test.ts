@@ -127,6 +127,12 @@ describe("refund events", () => {
     expect(deps.recordRefund).toHaveBeenCalledWith({ contributionId: "contrib-1", stripeRefundId: "re_1", amountCents: 420, internalRefundId: "int-1", providerStatus: "succeeded" });
   });
 
+  it("also handles the older charge.refund.updated event name", async () => {
+    const deps = makeDeps();
+    await handleStripeEvent(event("charge.refund.updated", refund()), deps);
+    expect(deps.recordRefund).toHaveBeenCalledWith(expect.objectContaining({ stripeRefundId: "re_1", providerStatus: "succeeded" }));
+  });
+
   it("registers pending refunds without booking them", async () => {
     const deps = makeDeps();
     for (const status of ["pending", "requires_action"]) {

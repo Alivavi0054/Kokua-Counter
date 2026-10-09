@@ -183,6 +183,8 @@ export async function handleStripeEvent(event: Stripe.Event, deps: WebhookDeps):
       break;
     case "refund.created":
     case "refund.updated":
+    // Older event name for the same thing; some endpoints are still subscribed to it.
+    case "charge.refund.updated":
       await applyProviderRefund(event.data.object as Stripe.Refund, deps);
       break;
     case "charge.refunded": {
