@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createSchoolRegistration } from "@/lib/organization-store";
+import { sendEmail } from "@/lib/email";
 import { describeError } from "@/lib/errors";
 import { rateLimitShared } from "@/lib/rate-limit-shared";
 import { getClientIp } from "@/lib/security";
@@ -57,53 +58,32 @@ export async function POST(request: Request) {
     console.error("School registration storage failed:", describeError(error));
   }
 
-  const resendApiKey = process.env.RESEND_API_KEY;
   const notifyTo = process.env.SCHOOL_REGISTRATION_TO_EMAIL?.trim();
-  if (resendApiKey && !notifyTo) {
-    console.warn("School registration email skipped: SCHOOL_REGISTRATION_TO_EMAIL is not set");
-  }
-  if (resendApiKey && notifyTo) {
-    // Printable ASCII only: strips CR/LF and every other control or non-ASCII character
-    // so the sender address cannot be used for header injection.
-    const emailFrom = (process.env.EMAIL_FROM ?? "Kokua Counter <noreply@kokuacounter.app>")
-      .replace(/[^\x20-\x7e]/g, "");
-    const subject = `School registration: ${submission.schoolName}`.replace(/\p{Cc}/gu, " ");
-    try {
-      const response = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${resendApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: emailFrom,
-          to: [notifyTo],
-          reply_to: submission.email,
-          subject,
-          text: [
-            "New school registration request for Kōkua Counter",
-            "",
-            `School: ${submission.schoolName}`,
-            `Contact: ${submission.contactName}`,
-            `Email: ${submission.email}`,
-            `Phone: ${submission.phone || "Not provided"}`,
-            `School type: ${submission.schoolType || "Not provided"}`,
-            `Estimated students: ${submission.students || "Not provided"}`,
-            `Location: ${submission.city || "Not provided"}, ${submission.state || "Not provided"}`,
-            "",
-            `Message:\n${submission.message || "No additional message provided."}`,
-            "",
-            `Submitted at: ${saved?.createdAt ?? new Date().toISOString()}`,
-          ].join("\n"),
-        }),
-      });
-
-      if (!response.ok) {
-        console.error("Resend email failed", await response.text());
-      }
-    } catch (error) {
-      console.error("Resend email threw an exception:", error);
+  if (!notifyTo) {
+    if (process.env.RESEND_API_KEY) {
+      console.warn("School registration email skipped: SCHOOL_REGISTRATION_TO_EMAIL is not set");
     }
+  } else {
+    await sendEmail({
+      to: notifyTo,
+      replyTo: submission.email,
+      subject: `School registration: ${submission.schoolName}`,
+      text: [
+        "New school registration request for Kōkua Counter",
+        "",
+        `School: ${submission.schoolName}`,
+        `Contact: ${submission.contactName}`,
+        `Email: ${submission.email}`,
+        `Phone: ${submission.phone || "Not provided"}`,
+        `School type: ${submission.schoolType || "Not provided"}`,
+        `Estimated students: ${submission.students || "Not provided"}`,
+        `Location: ${submission.city || "Not provided"}, ${submission.state || "Not provided"}`,
+        "",
+        `Message:\n${submission.message || "No additional message provided."}`,
+        "",
+        `Submitted at: ${saved?.createdAt ?? new Date().toISOString()}`,
+      ].join("\n"),
+    });
   }
 
   return NextResponse.json({

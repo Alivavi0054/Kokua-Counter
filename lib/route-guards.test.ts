@@ -19,6 +19,7 @@ const PUBLIC_ROUTES: Record<string, string> = {
   "donate/checkout": "origin check + rate limit",
   "donate/webhook": "Stripe signature",
   "cron/expire-qrs": "CRON_SECRET bearer token",
+  "cron/finance-health": "CRON_SECRET bearer token",
   "health": "no sensitive data",
   "schools/register": "rate limit + validation",
 };

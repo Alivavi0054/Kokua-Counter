@@ -130,6 +130,15 @@ for (const [method, p, owner, options] of apiCases) {
   }
 }
 
+// ---- 4b. cron endpoints
+for (const p of ["/api/cron/expire-qrs", "/api/cron/finance-health"]) {
+  check(`cron ${p} rejects a missing token`, (await req(p)).status === 401);
+  check(`cron ${p} rejects a wrong token`, (await req(p, { headers: { authorization: "Bearer nope" } })).status === 401);
+  check(`cron ${p} rejects a signed-in admin without the cron secret`, (await req(p, { cookie: roles.admin })).status === 401);
+  const ok = await req(p, { headers: { authorization: "Bearer e2e-cron-secret" } });
+  check(`cron ${p} runs with the correct token`, ok.status === 200, String(ok.status));
+}
+
 // ---- 5. sign out and deactivation
 const out = await req("/auth/signout", { method: "POST", cookie: roles.admin });
 check("sign out redirects home", out.status === 302 || out.status === 307 || out.status === 303, String(out.status));

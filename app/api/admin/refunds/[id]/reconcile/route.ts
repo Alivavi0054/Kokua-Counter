@@ -1,26 +1,19 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { recordAdminAction } from "@/lib/audit";
 import { requireApiRole } from "@/lib/auth/guards";
 import { describeError } from "@/lib/errors";
-import { databaseRefundDeps } from "@/lib/finance";
 import { rateLimit } from "@/lib/rate-limit";
-import { submitReservedRefund, type ReserveResult } from "@/lib/refunds";
-import { getStripe } from "@/lib/stripe/client";
-import { databaseWebhookDeps } from "@/lib/stripe/webhook-deps";
-import { applyProviderRefund } from "@/lib/stripe/webhook-handlers";
+import { reconcileRefund } from "@/lib/refund-reconcile";
+import { realReconcileDeps } from "@/lib/stripe/reconcile-deps";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { recordAdminAction } from "@/lib/audit";
 
 const uuidSchema = z.string().uuid();
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/**
- * Reconciles one refund with Stripe. A refund still "requested" is submitted again with the same
- * idempotency key (Stripe returns the original refund if it already exists, so this cannot refund
- * twice). A refund with a Stripe id is re-read from Stripe and its current state applied.
- */
+/** Reconciles one refund with Stripe (see lib/refund-reconcile.ts). Safe to repeat. */
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireApiRole("admin");
   if (!auth.ok) return auth.response;
@@ -35,8 +28,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
 
-  const admin = createAdminClient();
-  const { data: refund, error } = await admin
+  const { data: refund, error } = await createAdminClient()
     .from("refunds")
     .select("id, contribution_id, status, amount_cents, principal_cents, fee_cents, stripe_refund_id")
     .eq("id", id)
@@ -44,42 +36,23 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   if (error || !refund) {
     return NextResponse.json({ error: "Refund not found." }, { status: 404 });
   }
-  if (refund.status === "succeeded" || refund.status === "failed" || refund.status === "canceled") {
-    return NextResponse.json({ message: `Nothing to reconcile: this refund is ${refund.status}.` });
-  }
 
   try {
-    const stripe = getStripe();
-    if (refund.stripe_refund_id) {
-      const remote = await stripe.refunds.retrieve(refund.stripe_refund_id);
-      await applyProviderRefund(remote, databaseWebhookDeps());
-      await recordAdminAction({ actorId: auth.user.id, action: "refund.reconciled", targetType: "refund", targetId: id, details: { stripe_status: remote.status ?? "unknown" } });
-      return NextResponse.json({ message: `Stripe reports this refund as ${remote.status ?? "unknown"}.` });
+    const result = await reconcileRefund(refund, realReconcileDeps());
+    if (result.outcome === "nothing_to_do") {
+      return NextResponse.json({ message: `Nothing to reconcile: this refund is ${result.status}.` });
     }
-
-    const { data: contribution } = await admin
-      .from("contributions")
-      .select("stripe_payment_intent_id")
-      .eq("id", refund.contribution_id)
-      .maybeSingle();
-    const reserved: Extract<ReserveResult, { ok: true }> = {
-      ok: true,
-      replay: true,
-      refund_id: refund.id,
-      status: refund.status,
-      amount_cents: refund.amount_cents,
-      principal_cents: refund.principal_cents,
-      fee_cents: refund.fee_cents,
-      stripe_refund_id: null,
-      payment_intent_id: contribution?.stripe_payment_intent_id ?? null,
-    };
-    const result = await submitReservedRefund(reserved, refund.contribution_id, {
-      ...databaseRefundDeps(),
-      stripe,
-      log: (message, detail) => console.error(`admin/refund-reconcile: ${message}`, detail),
+    await recordAdminAction({
+      actorId: auth.user.id,
+      action: "refund.reconciled",
+      targetType: "refund",
+      targetId: id,
+      details: { outcome: result.outcome },
     });
-    if (result.status === "started") {
-      await recordAdminAction({ actorId: auth.user.id, action: "refund.reconciled", targetType: "refund", targetId: id, details: { resubmitted: true } });
+    if (result.outcome === "synced") {
+      return NextResponse.json({ message: `Stripe reports this refund as ${result.stripeStatus}.` });
+    }
+    if (result.outcome === "resubmitted") {
       return NextResponse.json({ message: "Refund submitted to Stripe. The ledger updates when Stripe confirms it." });
     }
     return NextResponse.json({ error: "Stripe could not confirm this refund. Try again shortly." }, { status: 502 });

@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
+import { recordAdminAction } from "@/lib/audit";
 import { requireApiRole } from "@/lib/auth/guards";
 import { describeError } from "@/lib/errors";
-import { listContributionsMissingProcessorFee, recordProcessorFee } from "@/lib/finance";
 import { rateLimit } from "@/lib/rate-limit";
-import { getStripe } from "@/lib/stripe/client";
-import { fetchProcessorFee } from "@/lib/stripe/processor-fees";
-import { recordAdminAction } from "@/lib/audit";
+import { backfillProcessorFees } from "@/lib/stripe/reconcile-deps";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,31 +19,9 @@ export async function POST() {
   }
 
   try {
-    const missing = await listContributionsMissingProcessorFee(25);
-    const stripe = getStripe();
-    let recorded = 0;
-    let unavailable = 0;
-    for (const item of missing) {
-      try {
-        const fee = await fetchProcessorFee(stripe, item.payment_intent_id);
-        if (!fee) {
-          unavailable += 1;
-          continue;
-        }
-        await recordProcessorFee({
-          contributionId: item.contribution_id,
-          paymentIntentId: item.payment_intent_id,
-          feeCents: fee.feeCents,
-          balanceTransactionId: fee.balanceTransactionId,
-        });
-        recorded += 1;
-      } catch (error) {
-        unavailable += 1;
-        console.error("admin/finance-reconcile: fee lookup failed", describeError(error));
-      }
-    }
-    await recordAdminAction({ actorId: auth.user.id, action: "finance.processor_fees_backfilled", details: { checked: missing.length, recorded, unavailable } });
-    return NextResponse.json({ checked: missing.length, recorded, unavailable });
+    const result = await backfillProcessorFees(25);
+    await recordAdminAction({ actorId: auth.user.id, action: "finance.processor_fees_backfilled", details: result });
+    return NextResponse.json(result);
   } catch (error) {
     console.error("admin/finance-reconcile: failed", describeError(error));
     return NextResponse.json({ error: "Could not reconcile processor fees." }, { status: 500 });

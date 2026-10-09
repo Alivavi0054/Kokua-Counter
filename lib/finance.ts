@@ -224,3 +224,41 @@ export function databaseRefundDeps(): Pick<RefundDeps, "reserveRefund" | "markRe
     },
   };
 }
+
+/** Refunds still "requested" or "pending" for longer than the given age (for reconciliation). */
+export async function listStuckRefunds(olderThanMinutes: number) {
+  const cutoff = new Date(Date.now() - olderThanMinutes * 60_000).toISOString();
+  const { data, error } = await createAdminClient()
+    .from("refunds")
+    .select("id, contribution_id, status, amount_cents, principal_cents, fee_cents, stripe_refund_id")
+    .in("status", ["requested", "pending"])
+    .lt("requested_at", cutoff)
+    .order("requested_at")
+    .limit(50);
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Settlements left in "processing" for longer than the given age. */
+export async function listStuckSettlements(olderThanMinutes: number) {
+  const cutoff = new Date(Date.now() - olderThanMinutes * 60_000).toISOString();
+  const { data, error } = await createAdminClient()
+    .from("settlements")
+    .select("id, eatery_id, amount_cents, created_at")
+    .eq("status", "processing")
+    .lt("created_at", cutoff)
+    .order("created_at")
+    .limit(50);
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function getPaymentIntentIdForContribution(contributionId: string): Promise<string | null> {
+  const { data, error } = await createAdminClient()
+    .from("contributions")
+    .select("stripe_payment_intent_id")
+    .eq("id", contributionId)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.stripe_payment_intent_id ?? null;
+}
