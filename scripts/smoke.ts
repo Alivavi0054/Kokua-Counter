@@ -1,4 +1,4 @@
-const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const appUrl = process.env.APP_URL ?? "http://localhost:3000";
 
 async function pass<T>(label: string, callback: () => Promise<T>) {
   try {
