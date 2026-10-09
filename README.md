@@ -113,6 +113,8 @@ Copy `.env.example` to `.env.local`. The example documents all supported values.
 | `SUPABASE_PROJECT_REF` | Only for `npm run types` | Project reference used by the Supabase CLI type-generation command. |
 | `RESEND_API_KEY` | Optional | Resend API key used to email school registration requests. The email is skipped when unset. |
 | `EMAIL_FROM` | Optional | Sender address for the registration email. Defaults to `Kokua Counter <noreply@kokuacounter.app>`. Only printable ASCII is kept. |
+| `CONTACT_EMAIL` | Optional | Public contact address shown on the privacy and terms pages. Neutral wording is shown when unset. |
+| `OPERATING_ORGANIZATION` | Optional | Name of the operating organization shown on the donate page. Omitted when unset. |
 | `SCHOOL_REGISTRATION_TO_EMAIL` | Optional | Recipient of school registration emails. The email is skipped when unset. |
 
 Only the Supabase URL and anon key are intended to be public (the meal value is fixed in code at `800` cents, and Stripe Checkout is a hosted redirect, so no Stripe publishable key is read). Service-role, database, Stripe secret, webhook, cron, and seed-password values must remain server-side.

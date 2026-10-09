@@ -1,5 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { PageHeader } from "@/components/page-header";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConnectPayoutsButton } from "@/components/connect-payouts-button";
@@ -51,25 +54,35 @@ export default async function EateryPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-8">
-      <div className="space-y-2">
-        <p className="text-sm font-medium text-primary">Eatery counter</p>
-        <h1 className="font-serif text-4xl">{eatery?.name ?? "Eatery account"}</h1>
-      </div>
+      <PageHeader eyebrow="Eatery counter" title={eatery?.name ?? "Eatery account"} />
       {!eatery || !eatery.is_active ? (
-        <p className="text-muted-foreground">This account does not have an active eatery.</p>
+        <Alert variant="warning">
+          This account does not have an active eatery yet. Contact the program team to get set up.
+        </Alert>
       ) : (
         <>
+          <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Meals accepted today</CardTitle></CardHeader>
+              <CardContent><p className="font-serif text-5xl font-semibold text-primary">{acceptedCount}</p></CardContent>
+            </Card>
+            <Button asChild size="lg" variant="accent" className="h-auto min-h-24 px-10 text-lg">
+              <Link href="/eatery/scan">Scan meal pass</Link>
+            </Button>
+          </div>
           <Card>
-            <CardHeader><CardTitle>Meals accepted today</CardTitle></CardHeader>
-            <CardContent><p className="font-serif text-5xl">{acceptedCount}</p></CardContent>
-          </Card>
-          <Button asChild><Link href="/eatery/scan">Scan meal pass</Link></Button>
-          <Card>
-            <CardHeader><CardTitle>Payouts</CardTitle></CardHeader>
+            <CardHeader>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <CardTitle>Payouts</CardTitle>
+                <Badge variant={eatery.stripe_connect_account_id ? "success" : "warning"}>
+                  {eatery.stripe_connect_account_id ? "Connected" : "Not connected"}
+                </Badge>
+              </div>
+            </CardHeader>
             <CardContent>
-              <p className="mb-3 text-sm text-muted-foreground">
+              <p className="mb-4 text-sm text-muted-foreground">
                 {eatery.stripe_connect_account_id
-                  ? "Your payout account is connected."
+                  ? "Your payout account is connected. Settlements for redeemed meals are sent there."
                   : "Connect a payout account to receive settlements for redeemed meals."}
               </p>
               <ConnectPayoutsButton isConnected={Boolean(eatery.stripe_connect_account_id)} />

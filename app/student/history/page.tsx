@@ -1,11 +1,21 @@
 import type { Metadata } from "next";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Link from "next/link";
+import { EmptyState } from "@/components/empty-state";
+import { PageHeader } from "@/components/page-header";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { requireRole } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Meal pass history",
   description: "Review your Kōkua Counter meal pass history.",
+};
+
+const statusVariant: Record<string, "success" | "info" | "outline"> = {
+  redeemed: "success",
+  active: "info",
 };
 
 export default async function StudentHistoryPage() {
@@ -21,22 +31,32 @@ export default async function StudentHistoryPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <h1 className="font-serif text-3xl">Meal pass history</h1>
+      <PageHeader
+        eyebrow="Student"
+        title="Meal pass history"
+        actions={<Button asChild variant="outline"><Link href="/student">Back to my pass</Link></Button>}
+      />
       {!passes?.length ? (
-        <p className="text-muted-foreground">Your meal pass history will appear here.</p>
+        <EmptyState title="No passes yet">Your meal pass history will appear here after you request your first pass.</EmptyState>
       ) : (
-        <div className="space-y-3">
+        <ul className="space-y-3">
           {passes.map((pass) => (
-            <Card key={pass.id}>
-              <CardHeader><CardTitle className="text-lg">{pass.status === "redeemed" ? "Meal redeemed" : `Pass ${pass.status}`}</CardTitle></CardHeader>
-              <CardContent className="space-y-1 text-sm text-muted-foreground">
-                <p>Requested {new Date(pass.created_at).toLocaleString()}</p>
-                {pass.redeemed_at ? <p>Redeemed {new Date(pass.redeemed_at).toLocaleString()}</p> : null}
-                {pass.status === "active" ? <p>Expires {new Date(pass.expires_at).toLocaleString()}</p> : null}
-              </CardContent>
-            </Card>
+            <li key={pass.id}>
+              <Card>
+                <CardContent className="flex flex-wrap items-start justify-between gap-3 p-5">
+                  <div className="space-y-1 text-sm text-muted-foreground">
+                    <p className="font-medium text-foreground">Requested {new Date(pass.created_at).toLocaleString()}</p>
+                    {pass.redeemed_at ? <p>Redeemed {new Date(pass.redeemed_at).toLocaleString()}</p> : null}
+                    {pass.status === "active" ? <p>Expires {new Date(pass.expires_at).toLocaleString()}</p> : null}
+                  </div>
+                  <Badge variant={statusVariant[pass.status] ?? "outline"} className="capitalize">
+                    {pass.status === "redeemed" ? "Meal redeemed" : pass.status}
+                  </Badge>
+                </CardContent>
+              </Card>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   );

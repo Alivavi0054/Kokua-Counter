@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { EmptyState } from "@/components/empty-state";
+import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth/guards";
 import { listSchoolRegistrations } from "@/lib/organization-store";
 
@@ -14,24 +17,19 @@ export default async function AdminRegistrationsPage() {
 
   return (
     <div className="space-y-8">
-      <div className="space-y-2">
-        <p className="text-sm font-medium text-primary">Admin tools</p>
-        <h1 className="font-serif text-4xl">School registrations</h1>
-      </div>
-
-      <a
-        href="/api/admin/registrations/export"
-        className="inline-flex min-h-10 items-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-muted"
-      >
-        Export CSV
-      </a>
+      <PageHeader
+        eyebrow="Admin"
+        title="School registrations"
+        description="Partnership requests submitted through the school registration form."
+        actions={<Button asChild variant="outline"><a href="/api/admin/registrations/export">Export CSV</a></Button>}
+      />
 
       {registrations.length === 0 ? (
-        <p className="text-muted-foreground">No school registration requests yet.</p>
+        <EmptyState title="No school registration requests yet">New submissions from the public form will appear here.</EmptyState>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {registrations.map((registration) => (
-            <article key={registration.id} className="rounded-lg border bg-card p-4 shadow-sm">
+            <article key={registration.id} className="rounded-xl border bg-card p-5 shadow-soft">
               <div className="mb-2 flex items-center justify-between gap-4">
                 <h3 className="font-serif text-xl">{registration.schoolName}</h3>
                 <span className="text-xs text-muted-foreground">

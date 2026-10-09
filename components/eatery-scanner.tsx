@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { parseQrPayload } from "@/lib/crypto/parse-qr";
 
 function getCameraErrorMessage(error: unknown): string {
@@ -177,58 +179,48 @@ export function EateryScanner() {
 
   return (
     <div className="space-y-4">
-      <div id="eatery-qr-reader" className="min-h-[65vh] w-full overflow-hidden rounded-md border bg-black" aria-label="Meal pass camera scanner" />
-      
-      {cameraError && (
-        <div className="rounded-md bg-red-50 p-4 border border-red-200">
-          <p className="text-sm font-medium text-red-900" role="alert">
-            {cameraError}
-          </p>
-          <div className="text-xs text-red-700 mt-3 space-y-2">
-            <p><strong>Troubleshooting:</strong></p>
-            <ul className="list-disc list-inside space-y-1">
-              <li>On your phone: Look for Chrome&apos;s address bar lock icon (🔒) → Camera → change to &quot;Allow&quot;</li>
-              <li>Then refresh this page and try again</li>
+      <div id="eatery-qr-reader" className="min-h-[60vh] w-full overflow-hidden rounded-xl border bg-black shadow-soft" aria-label="Meal pass camera scanner" />
+
+      {cameraError ? (
+        <Alert variant="destructive" className="space-y-3">
+          <p className="font-semibold">{cameraError}</p>
+          <div className="space-y-1 text-xs text-foreground/80">
+            <p className="font-semibold">Troubleshooting</p>
+            <ul className="list-inside list-disc space-y-1">
+              <li>On your phone: tap the lock icon in Chrome&apos;s address bar, then Camera, and choose &quot;Allow&quot;</li>
+              <li>Refresh this page and try again</li>
               <li>If you still see errors, close Chrome completely and reopen it</li>
             </ul>
           </div>
-        </div>
+        </Alert>
+      ) : null}
+
+      {!scanning ? (
+        <Button
+          type="button"
+          size="lg"
+          variant={cameraError ? "accent" : "default"}
+          className="w-full"
+          disabled={starting}
+          onClick={() => {
+            setCameraError(null);
+            void startScanner();
+          }}
+        >
+          {starting ? "Waiting for permission…" : cameraError ? "Try again" : "Enable camera"}
+        </Button>
+      ) : (
+        <Alert variant="success">
+          <p className="font-semibold">✓ Camera is active and scanning</p>
+          <p className="text-xs text-muted-foreground">Point the phone at the student&apos;s QR code.</p>
+        </Alert>
       )}
-      
-      {!scanning && (
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setCameraError(null);
-              void startScanner();
-            }}
-            disabled={starting}
-            className={`flex-1 h-12 rounded-md font-medium transition-colors ${
-              starting
-                ? "bg-blue-200 text-blue-900 cursor-wait"
-                : cameraError
-                  ? "bg-orange-600 hover:bg-orange-700 text-white"
-                  : "bg-blue-600 hover:bg-blue-700 text-white"
-            }`}
-          >
-            {starting ? "Waiting for permission…" : cameraError ? "Try Again" : "Enable Camera"}
-          </button>
-        </div>
-      )}
-      
-      {scanning && (
-        <div className="rounded-md bg-green-50 p-3 border border-green-200">
-          <p className="text-sm font-medium text-green-900">✓ Camera is active and scanning</p>
-          <p className="text-xs text-green-700">Point the phone at the student&apos;s QR code.</p>
-        </div>
-      )}
-      
-      {!scanning && !starting && !cameraError && (
+
+      {!scanning && !starting && !cameraError ? (
         <p className="text-sm text-muted-foreground">
           Center the student&apos;s QR code in the camera frame. Scanned content is used only to verify the pass.
         </p>
-      )}
+      ) : null}
     </div>
   );
 }

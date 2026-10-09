@@ -1,4 +1,8 @@
+import { EmptyState } from "@/components/empty-state";
+import { PageHeader } from "@/components/page-header";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TableShell } from "@/components/ui/table-shell";
 import type { Metadata } from "next";
 import { RefundContributionButton } from "@/components/admin-refund-button";
 import { requireRole } from "@/lib/auth/guards";
@@ -92,96 +96,79 @@ export default async function AdminPage() {
     completedMealCount > 0 || activeEateryCount > 0;
 
   return (
-    <div className="space-y-8">
-      <div className="space-y-2">
-        <p className="text-sm font-medium text-primary">Program overview</p>
-        <h1 className="font-serif text-4xl">Kōkua Counter</h1>
-      </div>
-      <div className="flex flex-wrap gap-3">
-        <a href="/admin/organizations" className="inline-flex min-h-11 items-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-muted">
-          Manage organizations
-        </a>
-        <a href="/admin/registrations" className="inline-flex min-h-11 items-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-muted">
-          School registrations
-        </a>
-        <a href="/admin/eateries" className="inline-flex min-h-11 items-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-muted">
-          Manage eateries
-        </a>
-        <a href="/admin/users" className="inline-flex min-h-11 items-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-muted">
-          Manage users
-        </a>
-      </div>
-      {!hasData ? <p className="text-muted-foreground">No program activity yet.</p> : null}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="space-y-10">
+      <PageHeader
+        eyebrow="Program overview"
+        title="Kōkua Counter"
+        description="Current pool, meal activity and contributions."
+      />
+      {!hasData ? <EmptyState title="No program activity yet">Contributions and redeemed meals will show up here.</EmptyState> : null}
+      <section aria-label="Key metrics" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {metrics.map((metric) => (
           <Card key={metric.label}>
-            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">{metric.label}</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{metric.label}</CardTitle></CardHeader>
             <CardContent>
-              <p className="font-serif text-3xl">{metric.value}</p>
+              <p className="font-serif text-3xl font-semibold text-primary">{metric.value}</p>
               <p className="mt-1 text-sm text-muted-foreground">{metric.detail}</p>
             </CardContent>
           </Card>
         ))}
-      </div>
+      </section>
       <section className="space-y-3">
-        <h2 className="font-serif text-2xl">Recent redemptions</h2>
+        <h2 className="font-serif text-2xl font-semibold text-primary">Recent redemptions</h2>
         {!recentRedemptions.length ? (
-          <p className="text-muted-foreground">No completed meals yet.</p>
+          <EmptyState title="No completed meals yet" />
         ) : (
-          <div className="overflow-x-auto rounded-md border">
-            <table className="w-full min-w-[32rem] text-left text-sm">
-              <thead className="bg-muted text-muted-foreground">
-                <tr><th className="px-4 py-3 font-medium">Time</th><th className="px-4 py-3 font-medium">Eatery</th><th className="px-4 py-3 text-right font-medium">Amount</th></tr>
-              </thead>
-              <tbody className="divide-y">
-                {recentRedemptions.map((item) => (
-                  <tr key={item.id}>
-                    <td className="px-4 py-3">{new Date(item.redeemed_at).toLocaleString("en-US", { timeZone: "Pacific/Honolulu" })}</td>
-                    <td className="px-4 py-3">{eateryNames.get(item.eatery_id) ?? "Participating eatery"}</td>
-                    <td className="px-4 py-3 text-right">{formatUsdFromCents(item.amount_cents)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <TableShell>
+            <thead className="bg-muted/70 text-muted-foreground">
+              <tr><th className="px-4 py-3 font-medium">Time</th><th className="px-4 py-3 font-medium">Eatery</th><th className="px-4 py-3 text-right font-medium">Amount</th></tr>
+            </thead>
+            <tbody className="divide-y">
+              {recentRedemptions.map((item) => (
+                <tr key={item.id}>
+                  <td className="px-4 py-3">{new Date(item.redeemed_at).toLocaleString("en-US", { timeZone: "Pacific/Honolulu" })}</td>
+                  <td className="px-4 py-3">{eateryNames.get(item.eatery_id) ?? "Participating eatery"}</td>
+                  <td className="px-4 py-3 text-right font-medium">{formatUsdFromCents(item.amount_cents)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </TableShell>
         )}
       </section>
       <section className="space-y-3">
-        <h2 className="font-serif text-2xl">Recent contributions</h2>
+        <h2 className="font-serif text-2xl font-semibold text-primary">Recent contributions</h2>
         {!recentContributions.length ? (
-          <p className="text-muted-foreground">No contributions yet.</p>
+          <EmptyState title="No contributions yet" />
         ) : (
-          <div className="overflow-x-auto rounded-md border">
-            <table className="w-full min-w-[32rem] text-left text-sm">
-              <thead className="bg-muted text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Date</th>
-                  <th className="px-4 py-3 font-medium">Amount</th>
-                  <th className="px-4 py-3 font-medium">Refunded</th>
-                  <th className="px-4 py-3 text-right font-medium">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {recentContributions.map((item) => {
-                  const remaining = item.amount_cents - item.refunded_amount_cents;
-                  return (
-                    <tr key={item.id}>
-                      <td className="px-4 py-3">{new Date(item.created_at).toLocaleString("en-US", { timeZone: "Pacific/Honolulu" })}</td>
-                      <td className="px-4 py-3">{formatUsdFromCents(item.amount_cents)}</td>
-                      <td className="px-4 py-3">{formatUsdFromCents(item.refunded_amount_cents)}</td>
-                      <td className="px-4 py-3 text-right">
-                        {remaining > 0 ? (
-                          <RefundContributionButton contributionId={item.id} />
-                        ) : (
-                          <span className="text-xs text-muted-foreground">Fully refunded</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <TableShell>
+            <thead className="bg-muted/70 text-muted-foreground">
+              <tr>
+                <th className="px-4 py-3 font-medium">Date</th>
+                <th className="px-4 py-3 font-medium">Amount</th>
+                <th className="px-4 py-3 font-medium">Refunded</th>
+                <th className="px-4 py-3 text-right font-medium">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {recentContributions.map((item) => {
+                const remaining = item.amount_cents - item.refunded_amount_cents;
+                return (
+                  <tr key={item.id}>
+                    <td className="px-4 py-3">{new Date(item.created_at).toLocaleString("en-US", { timeZone: "Pacific/Honolulu" })}</td>
+                    <td className="px-4 py-3 font-medium">{formatUsdFromCents(item.amount_cents)}</td>
+                    <td className="px-4 py-3">{formatUsdFromCents(item.refunded_amount_cents)}</td>
+                    <td className="px-4 py-3 text-right">
+                      {remaining > 0 ? (
+                        <RefundContributionButton contributionId={item.id} />
+                      ) : (
+                        <Badge variant="outline">Fully refunded</Badge>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </TableShell>
         )}
       </section>
     </div>

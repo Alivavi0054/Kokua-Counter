@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { AdminCreateUserForm } from "@/components/admin-create-user-form";
 import { AdminUsersTable } from "@/components/admin-users-table";
+import { EmptyState } from "@/components/empty-state";
+import { PageHeader } from "@/components/page-header";
 import { requireRole } from "@/lib/auth/guards";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -25,15 +27,12 @@ export default async function AdminUsersPage() {
 
   return (
     <div className="space-y-8">
-      <div className="space-y-2">
-        <p className="text-sm font-medium text-primary">Admin tools</p>
-        <h1 className="font-serif text-4xl">Users</h1>
-      </div>
+      <PageHeader eyebrow="Admin" title="Users" description="Create accounts and activate or deactivate access." />
 
       <AdminCreateUserForm />
 
       {!users?.length ? (
-        <p className="text-muted-foreground">No users yet.</p>
+        <EmptyState title="No users yet" />
       ) : (
         <AdminUsersTable users={users} currentUserId={current.id} />
       )}

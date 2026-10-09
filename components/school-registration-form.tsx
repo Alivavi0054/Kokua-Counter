@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -143,16 +144,14 @@ export function SchoolRegistrationForm() {
                 id="message"
                 value={form.message}
                 onChange={(event) => setForm((current) => ({ ...current, message: event.target.value }))}
-                className="min-h-32 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="min-h-32 w-full rounded-lg border border-input bg-card px-3.5 py-2.5 text-base shadow-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                 placeholder="Tell us how you’d like to participate or what support your school needs."
               />
             </div>
           </div>
 
           {status ? (
-            <p className={status.type === "success" ? "text-sm text-green-700" : "text-sm text-red-700"} role="status">
-              {status.message}
-            </p>
+            <Alert variant={status.type === "success" ? "success" : "destructive"}>{status.message}</Alert>
           ) : null}
 
           <Button type="submit" className="w-full" disabled={pending}>

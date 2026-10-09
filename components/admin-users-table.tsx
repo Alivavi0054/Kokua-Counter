@@ -2,7 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { UserActiveToggle } from "@/components/admin-user-toggle";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/empty-state";
 import { Input } from "@/components/ui/input";
+import { TableShell } from "@/components/ui/table-shell";
 
 type AdminUserRow = {
   id: string;
@@ -39,7 +42,7 @@ export function AdminUsersTable({ users, currentUserId }: { users: AdminUserRow[
         <select
           value={roleFilter}
           onChange={(event) => setRoleFilter(event.target.value)}
-          className="h-11 rounded-md border border-input bg-background px-3 text-sm"
+          className="h-11 rounded-lg border border-input bg-card px-3 text-sm shadow-sm"
           aria-label="Filter by role"
         >
           <option value="all">All roles</option>
@@ -51,11 +54,10 @@ export function AdminUsersTable({ users, currentUserId }: { users: AdminUserRow[
         </select>
       </div>
       {filtered.length === 0 ? (
-        <p className="text-muted-foreground">No users match your search.</p>
+        <EmptyState title="No users match your search" />
       ) : (
-        <div className="overflow-x-auto rounded-md border">
-          <table className="w-full min-w-[36rem] text-left text-sm">
-            <thead className="bg-muted text-muted-foreground">
+        <TableShell minWidth="36rem">
+            <thead className="bg-muted/70 text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Role</th>
@@ -67,11 +69,11 @@ export function AdminUsersTable({ users, currentUserId }: { users: AdminUserRow[
               {filtered.map((user) => (
                 <tr key={user.id}>
                   <td className="px-4 py-3 font-medium text-foreground">{user.display_name}</td>
-                  <td className="px-4 py-3 capitalize">{user.role}</td>
+                  <td className="px-4 py-3"><Badge variant={user.role === "admin" ? "default" : "secondary"} className="capitalize">{user.role}</Badge></td>
                   <td className="px-4 py-3">
-                    <span className={user.is_active ? "text-green-700" : "text-muted-foreground"}>
+                    <Badge variant={user.is_active ? "success" : "outline"}>
                       {user.is_active ? "Active" : "Inactive"}
-                    </span>
+                    </Badge>
                   </td>
                   <td className="px-4 py-3 text-right">
                     {user.id === currentUserId ? (
@@ -83,8 +85,7 @@ export function AdminUsersTable({ users, currentUserId }: { users: AdminUserRow[
                 </tr>
               ))}
             </tbody>
-          </table>
-        </div>
+        </TableShell>
       )}
     </div>
   );

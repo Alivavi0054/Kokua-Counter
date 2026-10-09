@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/auth/guards";
 import { getAppUrl } from "@/lib/env";
+import { describeError } from "@/lib/errors";
 import { getStripe } from "@/lib/stripe/client";
 import { rateLimit } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -49,21 +50,24 @@ export async function POST() {
         return NextResponse.json({ error: "Could not save payout account." }, { status: 500 });
       }
     } catch (error) {
+      console.error("eatery/connect/onboard: account creation failed", describeError(error));
       if (error instanceof Error && error.message.includes("not signed up for Connect")) {
-        return NextResponse.json({
-          error: "Stripe Connect must be enabled. Contact support: enable Connect on https://dashboard.stripe.com/connect or in test mode via Stripe CLI.",
-        }, { status: 403 });
+        return NextResponse.json({ error: "Payout setup is not available yet." }, { status: 403 });
       }
-      throw error;
+      return NextResponse.json({ error: "Could not start payout setup. Please try again." }, { status: 502 });
     }
   }
 
-  const accountLink = await stripe.accountLinks.create({
-    account: accountId,
-    refresh_url: `${appUrl}/eatery`,
-    return_url: `${appUrl}/eatery`,
-    type: "account_onboarding",
-  });
-
-  return NextResponse.json({ url: accountLink.url });
+  try {
+    const accountLink = await stripe.accountLinks.create({
+      account: accountId,
+      refresh_url: `${appUrl}/eatery`,
+      return_url: `${appUrl}/eatery`,
+      type: "account_onboarding",
+    });
+    return NextResponse.json({ url: accountLink.url });
+  } catch (error) {
+    console.error("eatery/connect/onboard: account link failed", describeError(error));
+    return NextResponse.json({ error: "Could not start payout setup. Please try again." }, { status: 502 });
+  }
 }

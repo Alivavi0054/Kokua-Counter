@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { AdminCreateEateryForm } from "@/components/admin-create-eatery-form";
 import { AdminEateriesTable } from "@/components/admin-eateries-table";
+import { EmptyState } from "@/components/empty-state";
+import { PageHeader } from "@/components/page-header";
 import { requireRole } from "@/lib/auth/guards";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -24,15 +26,12 @@ export default async function AdminEateriesPage() {
 
   return (
     <div className="space-y-8">
-      <div className="space-y-2">
-        <p className="text-sm font-medium text-primary">Admin tools</p>
-        <h1 className="font-serif text-4xl">Eateries</h1>
-      </div>
+      <PageHeader eyebrow="Admin" title="Eateries" description="Add participating eateries, manage access and settle payouts." />
 
       <AdminCreateEateryForm />
 
       {!eateries?.length ? (
-        <p className="text-muted-foreground">No eateries have been created yet.</p>
+        <EmptyState title="No eateries yet">Create the first participating eatery with the form above.</EmptyState>
       ) : (
         <AdminEateriesTable eateries={eateries} />
       )}

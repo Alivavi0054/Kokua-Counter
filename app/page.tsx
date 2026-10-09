@@ -18,9 +18,9 @@ export default async function HomePage() {
     .order("name");
 
   return (
-    <div className="relative left-1/2 -ml-[50vw] -mt-8 -mb-8 w-screen overflow-hidden bg-[#fbfaf6] text-[#1e2922]">
-      <section className="border-b border-[#e8e5dc] px-4 pb-16 pt-12 sm:px-6 sm:pb-20 sm:pt-16 lg:px-8">
-        <div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-12 lg:gap-10">
+    <div className="relative left-1/2 -ml-[50vw] -mt-10 -mb-10 w-screen overflow-hidden bg-[#fbfaf6] text-[#1e2922]">
+      <section className="border-b border-[#e8e5dc] px-4 pb-20 pt-12 sm:px-6 sm:pb-24 sm:pt-16">
+        <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-12 lg:gap-10">
           <div className="space-y-6 lg:col-span-7">
             <p className="inline-flex items-center gap-2 rounded-full bg-[#e7efe9] px-3.5 py-1.5 text-xs font-semibold text-[#24503b]">
               Shared meal credits for University of Hawaiʻi students
@@ -48,7 +48,7 @@ export default async function HomePage() {
                 href="/auth/login"
                 className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[#c9d1c9] bg-white px-6 text-sm font-semibold text-[#18392b] transition-colors hover:bg-[#f0f3ef]"
               >
-                Student Login
+                Sign in
               </Link>
             </div>
             <div className="grid max-w-xl grid-cols-3 gap-4 border-t border-[#deded5] pt-6">
@@ -86,8 +86,8 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="bg-[#f0eee6] px-4 py-14 sm:px-6 sm:py-16 lg:px-8">
-        <div className="mx-auto grid max-w-7xl gap-8 md:grid-cols-3">
+      <section className="bg-[#f0eee6] px-4 py-14 sm:px-6 sm:py-16 ">
+        <div className="mx-auto grid max-w-6xl gap-8 md:grid-cols-3">
           <article className="border-t-2 border-[#c8583d] pt-5">
             <p className="text-xs font-semibold uppercase text-[#a94530]">01 · Give</p>
             <h2 className="mt-3 font-serif text-2xl font-semibold text-[#18392b]">Add a meal credit</h2>
@@ -106,8 +106,8 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section id="eateries-section" className="scroll-mt-24 px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
-        <div className="mx-auto max-w-7xl">
+      <section id="eateries-section" className="scroll-mt-24 px-4 py-16 sm:px-6 sm:py-20 ">
+        <div className="mx-auto max-w-6xl">
           <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase text-[#2a6f78]">Community partners</p>
@@ -142,8 +142,8 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="bg-[#18392b] px-4 py-14 text-white sm:px-6 sm:py-16 lg:px-8">
-        <div className="mx-auto grid max-w-7xl items-center gap-8 md:grid-cols-2">
+      <section className="bg-[#18392b] px-4 py-14 text-white sm:px-6 sm:py-16 ">
+        <div className="mx-auto grid max-w-6xl items-center gap-8 md:grid-cols-2">
           <div>
             <p className="text-xs font-semibold uppercase text-[#a3e0c8]">A community effort</p>
             <h2 className="mt-3 font-serif text-3xl font-semibold leading-tight sm:text-4xl">Food is part of feeling at home.</h2>
@@ -162,7 +162,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+      <section className="px-4 py-16 sm:px-6 sm:py-20 ">
         <div className="mx-auto grid max-w-5xl gap-10 md:grid-cols-[0.8fr_1.2fr]">
           <div>
             <p className="text-xs font-semibold uppercase text-[#c8583d]">Good to know</p>
@@ -185,7 +185,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="bg-[#e7efe9] px-4 py-12 text-center sm:px-6 lg:px-8">
+      <section className="bg-[#e7efe9] px-4 py-12 text-center sm:px-6 ">
         <div className="mx-auto max-w-3xl space-y-4">
           <h2 className="font-serif text-3xl font-semibold text-[#18392b]">Make room for one more at the table.</h2>
           <p className="text-sm leading-relaxed text-stone-700">A contribution helps keep meal credits available to University of Hawaiʻi students at participating eateries.</p>

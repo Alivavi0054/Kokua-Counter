@@ -71,6 +71,8 @@
     --input: 45 14% 78%;
     --ring: 186 55% 32%;
     --radius: 0.625rem;
+    --coral: hsl(var(--accent));
+    --sand: hsl(var(--secondary));
   }
 
   * {

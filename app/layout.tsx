@@ -39,7 +39,7 @@ export default function RootLayout({
         className={`${sans.variable} ${serif.variable} flex min-h-screen flex-col font-sans`}
       >
         <SiteHeader />
-        <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">{children}</main>
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6">{children}</main>
         <SiteFooter />
         <Analytics />
       </body>

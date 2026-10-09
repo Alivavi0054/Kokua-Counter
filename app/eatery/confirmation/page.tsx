@@ -27,11 +27,12 @@ export default async function EateryConfirmationPage({
   await requireRole("eatery");
   if (params.redemption_id) {
     return (
-      <Card className="mx-auto max-w-lg">
-        <CardHeader className="border-l-4 border-emerald-700 bg-emerald-50 text-emerald-950">
-          <CardTitle>Meal pass accepted</CardTitle>
+      <Card className="mx-auto max-w-lg border-success/40">
+        <CardHeader className="rounded-t-xl bg-success/10">
+          <CardTitle className="text-success">✓ Meal pass accepted</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 pt-6">
+          <p className="text-muted-foreground">Go ahead and serve the meal.</p>
           <Button asChild><Link href="/eatery/scan">Scan next pass</Link></Button>
         </CardContent>
       </Card>
@@ -39,11 +40,11 @@ export default async function EateryConfirmationPage({
   }
 
   return (
-    <Card className="mx-auto max-w-lg">
-      <CardHeader className="border-l-4 border-destructive bg-red-50 text-red-950">
-        <CardTitle>Meal pass not accepted</CardTitle>
+    <Card className="mx-auto max-w-lg border-destructive/40">
+      <CardHeader className="rounded-t-xl bg-destructive/8">
+        <CardTitle className="text-destructive">Meal pass not accepted</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 pt-6">
         <p role="status">{resultMessages[params.result ?? ""] ?? resultMessages.unavailable}</p>
         <Button asChild><Link href="/eatery/scan">Scan another pass</Link></Button>
       </CardContent>

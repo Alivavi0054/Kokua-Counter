@@ -7,6 +7,7 @@ import {
   PRESET_DONATION_CENTS,
 } from "@/lib/public-constants";
 import { formatUsdFromCents, mealsFromCents } from "@/lib/utils";
+import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -131,7 +132,7 @@ export function DonateForm() {
           <label className="flex items-start gap-2 text-sm">
             <input
               type="checkbox"
-              className="mt-1"
+              className="mt-0.5 size-4 accent-[hsl(var(--primary))]"
               checked={isAnonymous}
               onChange={(event) => setIsAnonymous(event.target.checked)}
             />
@@ -139,12 +140,10 @@ export function DonateForm() {
           </label>
 
           {error ? (
-            <p className="text-sm text-destructive" role="alert">
-              {error}
-            </p>
+            <Alert variant="destructive">{error}</Alert>
           ) : null}
 
-          <Button type="submit" className="w-full" disabled={pending || !amountIsValid}>
+          <Button type="submit" size="lg" variant="accent" className="w-full" disabled={pending || !amountIsValid}>
             {pending ? "Redirecting to checkout…" : "Continue to checkout"}
           </Button>
         </form>
