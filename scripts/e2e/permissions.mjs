@@ -110,6 +110,7 @@ const apiCases = [
   ["GET", "/api/admin/organizations/export", "admin"],
   ["GET", "/api/admin/registrations/export", "admin"],
   ["GET", "/api/admin/fee-settings", "admin"],
+  ["GET", "/api/admin/finance/export?month=2026-10&view=summary", "admin"],
   ["POST", "/api/admin/fee-settings", "admin"],
   ["POST", "/api/admin/contributions/22222222-2222-4222-8222-222222222222/refund", "admin"],
   ["POST", "/api/admin/refunds/22222222-2222-4222-8222-222222222222/reconcile", "admin", { denyOnly: true }],

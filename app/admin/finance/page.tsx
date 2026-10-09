@@ -5,7 +5,10 @@ import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { TableShell } from "@/components/ui/table-shell";
 import { requireRole } from "@/lib/auth/guards";
 import { formatFeeRate } from "@/lib/fees";
@@ -44,6 +47,7 @@ export default async function AdminFinancePage() {
     listRecentRefunds(25),
   ]);
   const usd = formatUsdFromCents;
+  const currentMonth = new Date().toLocaleDateString("en-CA", { timeZone: "Pacific/Honolulu", year: "numeric", month: "2-digit" }).slice(0, 7);
 
   return (
     <div className="space-y-10">
@@ -139,6 +143,26 @@ export default async function AdminFinancePage() {
                 ))}
               </tbody>
             </TableShell>
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="space-y-3" aria-labelledby="statements">
+        <h2 id="statements" className="font-serif text-2xl font-semibold text-primary">Monthly statements</h2>
+        <Card>
+          <CardHeader>
+            <CardTitle>Download for your accountant</CardTitle>
+            <CardDescription>CSV built from the ledgers in Hawaiʻi time: every entry, or a one-page summary of donations, fees, refunds, processing fees and dispute costs.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form method="get" action="/api/admin/finance/export" className="flex flex-wrap items-end gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="statement-month">Month</Label>
+                <Input id="statement-month" type="month" name="month" required defaultValue={currentMonth} max={currentMonth} className="w-48" />
+              </div>
+              <Button type="submit" name="view" value="summary">Summary CSV</Button>
+              <Button type="submit" name="view" value="entries" variant="outline">All entries CSV</Button>
+            </form>
           </CardContent>
         </Card>
       </section>
