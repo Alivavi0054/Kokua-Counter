@@ -723,6 +723,18 @@ BEGIN
   IF v_result ->> 'error_code' IS DISTINCT FROM 'try_later' THEN
     RAISE EXCEPTION 'database scan throttle should reject after 20 failures with try_later: %', v_result;
   END IF;
+
+  -- Settlement RPCs are SECURITY DEFINER and must only be callable by service_role.
+  IF has_function_privilege('anon', 'public.create_settlement(uuid,timestamptz)', 'execute')
+    OR has_function_privilege('authenticated', 'public.create_settlement(uuid,timestamptz)', 'execute')
+    OR has_function_privilege('anon', 'public.mark_settlement_result(uuid,public.settlement_status,text,text)', 'execute')
+    OR has_function_privilege('authenticated', 'public.mark_settlement_result(uuid,public.settlement_status,text,text)', 'execute')
+  THEN
+    RAISE EXCEPTION 'settlement RPCs must not be executable by anon or authenticated';
+  END IF;
+  IF NOT has_function_privilege('service_role', 'public.create_settlement(uuid,timestamptz)', 'execute') THEN
+    RAISE EXCEPTION 'service_role must be able to execute create_settlement';
+  END IF;
 END;
 $$;
 
