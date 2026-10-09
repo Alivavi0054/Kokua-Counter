@@ -9,6 +9,8 @@ import { ConnectPayoutsButton } from "@/components/connect-payouts-button";
 import { requireRole } from "@/lib/auth/guards";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getStripe } from "@/lib/stripe/client";
+import { getPayoutReadiness, type ConnectStripe, type PayoutReadiness } from "@/lib/stripe/connect";
 
 export const metadata: Metadata = {
   title: "Eatery counter",
@@ -26,6 +28,22 @@ function hawaiiDayRange(now: Date) {
   const localDate = `${getPart("year")}-${getPart("month")}-${getPart("day")}`;
   const start = new Date(`${localDate}T00:00:00-10:00`);
   return { start: start.toISOString(), end: new Date(start.getTime() + 86_400_000).toISOString() };
+}
+
+const readinessCopy: Record<PayoutReadiness, { badge: string; tone: "success" | "warning" | "outline"; text: string }> = {
+  ready: { badge: "Ready for payouts", tone: "success", text: "Your payout account is set up. Settlements for redeemed meals are sent there." },
+  incomplete: { badge: "Setup incomplete", tone: "warning", text: "Stripe still needs some details before payouts can be sent. Finish the setup to receive settlements." },
+  unknown: { badge: "Status unavailable", tone: "outline", text: "We couldn't check your payout status right now. Please try again later." },
+  not_started: { badge: "Not connected", tone: "warning", text: "Connect a payout account to receive settlements for redeemed meals." },
+};
+
+async function payoutReadiness(accountId: string | null): Promise<PayoutReadiness> {
+  if (!accountId) return "not_started";
+  try {
+    return await getPayoutReadiness(getStripe() as unknown as ConnectStripe, accountId);
+  } catch {
+    return "unknown";
+  }
 }
 
 export default async function EateryPage() {
@@ -52,6 +70,9 @@ export default async function EateryPage() {
     acceptedCount = count ?? 0;
   }
 
+  const readiness = await payoutReadiness(eatery?.stripe_connect_account_id ?? null);
+  const payout = readinessCopy[readiness];
+
   return (
     <div className="mx-auto max-w-2xl space-y-8">
       <PageHeader eyebrow="Eatery counter" title={eatery?.name ?? "Eatery account"} />
@@ -74,18 +95,12 @@ export default async function EateryPage() {
             <CardHeader>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <CardTitle>Payouts</CardTitle>
-                <Badge variant={eatery.stripe_connect_account_id ? "success" : "warning"}>
-                  {eatery.stripe_connect_account_id ? "Connected" : "Not connected"}
-                </Badge>
+                <Badge variant={payout.tone}>{payout.badge}</Badge>
               </div>
             </CardHeader>
             <CardContent>
-              <p className="mb-4 text-sm text-muted-foreground">
-                {eatery.stripe_connect_account_id
-                  ? "Your payout account is connected. Settlements for redeemed meals are sent there."
-                  : "Connect a payout account to receive settlements for redeemed meals."}
-              </p>
-              <ConnectPayoutsButton isConnected={Boolean(eatery.stripe_connect_account_id)} />
+              <p className="mb-4 text-sm text-muted-foreground">{payout.text}</p>
+              <ConnectPayoutsButton readiness={readiness} />
             </CardContent>
           </Card>
         </>

@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
-export function ConnectPayoutsButton({ isConnected }: { isConnected: boolean }) {
+export function ConnectPayoutsButton({ readiness }: { readiness: "not_started" | "ready" | "incomplete" | "unknown" }) {
+  const label = readiness === "ready" ? "Update payout details" : readiness === "incomplete" ? "Finish payout setup" : "Set up payouts";
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,8 +35,8 @@ export function ConnectPayoutsButton({ isConnected }: { isConnected: boolean }) 
 
   return (
     <div className="space-y-2">
-      <Button onClick={onClick} disabled={pending} variant={isConnected ? "outline" : "default"}>
-        {pending ? "Opening…" : isConnected ? "Update payout details" : "Set up payouts"}
+      <Button onClick={onClick} disabled={pending} variant={readiness === "ready" ? "outline" : "default"}>
+        {pending ? "Opening…" : label}
       </Button>
       {error ? <Alert variant="destructive">{error}</Alert> : null}
     </div>

@@ -3,6 +3,7 @@ import { requireApiRole } from "@/lib/auth/guards";
 import { getAppUrl } from "@/lib/env";
 import { describeError } from "@/lib/errors";
 import { getStripe } from "@/lib/stripe/client";
+import { createOnboardingLink, createRecipientAccount, isPlatformNotReadyError, type ConnectStripe } from "@/lib/stripe/connect";
 import { rateLimit } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -29,19 +30,13 @@ export async function POST() {
     return NextResponse.json({ error: "Could not find your eatery account." }, { status: 404 });
   }
 
-  const stripe = getStripe();
+  const stripe = getStripe() as unknown as ConnectStripe;
   const appUrl = getAppUrl("eatery payout onboarding redirects");
   let accountId = eatery.stripe_connect_account_id;
 
   if (!accountId) {
     try {
-      const account = await stripe.accounts.create({
-        type: "express",
-        email: eatery.contact_email,
-        business_type: "company",
-        company: { name: eatery.name },
-      });
-      accountId = account.id;
+      accountId = await createRecipientAccount(stripe, eatery);
       const { error: updateError } = await admin
         .from("eateries")
         .update({ stripe_connect_account_id: accountId })
@@ -51,7 +46,7 @@ export async function POST() {
       }
     } catch (error) {
       console.error("eatery/connect/onboard: account creation failed", describeError(error));
-      if (error instanceof Error && error.message.includes("not signed up for Connect")) {
+      if (isPlatformNotReadyError(error)) {
         return NextResponse.json({ error: "Payout setup is not available yet." }, { status: 403 });
       }
       return NextResponse.json({ error: "Could not start payout setup. Please try again." }, { status: 502 });
@@ -59,15 +54,13 @@ export async function POST() {
   }
 
   try {
-    const accountLink = await stripe.accountLinks.create({
-      account: accountId,
-      refresh_url: `${appUrl}/eatery`,
-      return_url: `${appUrl}/eatery`,
-      type: "account_onboarding",
-    });
-    return NextResponse.json({ url: accountLink.url });
+    const url = await createOnboardingLink(stripe, accountId, appUrl);
+    return NextResponse.json({ url });
   } catch (error) {
     console.error("eatery/connect/onboard: account link failed", describeError(error));
+    if (isPlatformNotReadyError(error)) {
+      return NextResponse.json({ error: "Payout setup is not available yet." }, { status: 403 });
+    }
     return NextResponse.json({ error: "Could not start payout setup. Please try again." }, { status: 502 });
   }
 }
