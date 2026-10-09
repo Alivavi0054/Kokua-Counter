@@ -7,6 +7,8 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": rootDir,
+      // The real package throws when imported outside a React Server Component.
+      "server-only": `${rootDir}tests/stubs/server-only.ts`,
     },
   },
 });
