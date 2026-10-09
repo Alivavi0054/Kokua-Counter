@@ -89,7 +89,7 @@ check("safe next is honored", (await login("student@hawaii.edu", "pw", "/student
 // ---- 3. role x area matrix (pages)
 const roles = { admin: sessions["admin@example.com"], eatery: sessions["eatery@example.com"], student: sessions["student@hawaii.edu"] };
 const home = { admin: "/admin", eatery: "/eatery", student: "/student" };
-const areas = { admin: ["/admin", "/admin/users", "/admin/eateries", "/admin/organizations", "/admin/registrations"], eatery: ["/eatery", "/eatery/scan"], student: ["/student", "/student/history", "/student/meal"] };
+const areas = { admin: ["/admin", "/admin/finance", "/admin/users", "/admin/eateries", "/admin/organizations", "/admin/registrations"], eatery: ["/eatery", "/eatery/scan"], student: ["/student", "/student/history", "/student/meal"] };
 for (const [role, cookie] of Object.entries(roles)) {
   for (const [areaRole, pages] of Object.entries(areas)) {
     for (const p of pages) {
@@ -109,6 +109,12 @@ const apiCases = [
   ["POST", "/api/admin/organizations", "admin"],
   ["GET", "/api/admin/organizations/export", "admin"],
   ["GET", "/api/admin/registrations/export", "admin"],
+  ["GET", "/api/admin/fee-settings", "admin"],
+  ["POST", "/api/admin/fee-settings", "admin"],
+  ["POST", "/api/admin/contributions/22222222-2222-4222-8222-222222222222/refund", "admin"],
+  ["POST", "/api/admin/refunds/22222222-2222-4222-8222-222222222222/reconcile", "admin", { denyOnly: true }],
+  // Deny-only: letting an admin through would call the real Stripe API.
+  ["POST", "/api/admin/finance/reconcile", "admin", { denyOnly: true }],
   ["POST", "/api/qr/generate", "student"],
   ["GET", "/api/qr/status?id=00000000-0000-4000-8000-000000000000", "student"],
   ["POST", "/api/qr/redeem", "eatery"],

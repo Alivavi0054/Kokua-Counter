@@ -31,6 +31,7 @@ function rows(table, url) {
   if (table === "qr_codes") return [{ id: "q1", status: "redeemed", created_at: "2026-10-07T18:00:00Z", expires_at: "2026-10-07T18:10:00Z", redeemed_at: "2026-10-07T18:04:00Z" }, { id: "q2", status: "expired", created_at: "2026-10-06T18:00:00Z", expires_at: "2026-10-06T18:10:00Z", redeemed_at: null }];
   if (table === "contributions") return [{ id: "c1", amount_cents: 2400, refunded_amount_cents: 0, status: "completed", created_at: "2026-10-07T12:00:00Z" }, { id: "c2", amount_cents: 800, refunded_amount_cents: 800, status: "refunded", created_at: "2026-10-06T12:00:00Z" }];
   if (table === "redemptions") return [{ id: "r1", eatery_id: "e1", amount_cents: 800, redeemed_at: "2026-10-07T18:04:00Z" }];
+  if (table === "fee_settings") return [{ id: "f1", rate_bps: 500, effective_at: "1970-01-01T00:00:00Z", note: "Default 5% operational fee", created_at: "2026-10-01T00:00:00Z" }];
   if (table === "organizations" || table === "school_registrations") return [];
   return [];
 }
@@ -55,7 +56,17 @@ export function startMock(port) {
         return send(200, { access_token: `tok-${a.id}`, token_type: "bearer", expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: `ref-${a.id}`, user: u });
       }
       if (url.pathname === "/auth/v1/logout") return send(204);
-      if (url.pathname.startsWith("/rest/v1/rpc/")) return send(200, 0);
+      if (url.pathname.startsWith("/rest/v1/rpc/")) {
+        const fn = url.pathname.split("/").pop();
+        if (fn === "current_fee_rate_bps") return send(200, 500);
+        if (fn === "finance_reconciliation") return send(200, { ok: true, issues: [] });
+        if (fn === "contributions_missing_processor_fee") return send(200, []);
+        if (fn === "finance_summary") {
+          const zero = ["principal_credited_cents", "principal_refunded_cents", "net_principal_cents", "chargeback_principal_cents", "fees_charged_cents", "fees_refunded_cents", "net_fees_retained_cents", "processor_fees_cents", "dispute_fees_cents", "net_operational_revenue_cents", "pool_balance_cents", "redeemed_value_cents", "settlements_paid_cents", "settlements_pending_cents", "pending_contributions_count", "pending_contributions_total_cents", "refunds_requested_count", "refunds_pending_count", "refunds_succeeded_count", "refunds_failed_count", "outstanding_recovery_cents", "disputes_open_count", "disputes_open_principal_cents", "disputes_open_fee_cents"];
+          return send(200, Object.fromEntries(zero.map((k) => [k, 0])));
+        }
+        return send(200, 0);
+      }
       if (url.pathname.startsWith("/rest/v1/")) {
         const table = url.pathname.split("/").pop();
         const data = rows(table, url);

@@ -25,7 +25,7 @@ export default async function AdminPage() {
     await Promise.all([
       admin
         .from("contributions")
-        .select("amount_cents, refunded_amount_cents")
+        .select("amount_cents, refunded_amount_cents, operational_fee_cents, fee_refunded_cents")
         .in("status", ["completed", "refunded"]),
       admin
         .from("qr_codes")
@@ -47,7 +47,7 @@ export default async function AdminPage() {
         .limit(8),
       admin
         .from("contributions")
-        .select("id, amount_cents, refunded_amount_cents, status, created_at")
+        .select("id, amount_cents, refunded_amount_cents, operational_fee_cents, fee_refunded_cents, total_charged_cents, status, created_at")
         .in("status", ["completed", "refunded"])
         .order("created_at", { ascending: false })
         .limit(8),
@@ -67,6 +67,9 @@ export default async function AdminPage() {
   const grossCents = contributions.reduce((total, item) => total + item.amount_cents, 0);
   const refundedCents = contributions.reduce((total, item) => total + item.refunded_amount_cents, 0);
   const netCents = grossCents - refundedCents;
+  const feesRetainedCents =
+    contributions.reduce((total, item) => total + item.operational_fee_cents, 0) -
+    contributions.reduce((total, item) => total + item.fee_refunded_cents, 0);
   const activeQrCount = activeQrsResult.count ?? 0;
   const completedMealCount = redemptionsResult.count ?? 0;
   const activeEateryCount = eateriesResult.count ?? 0;
@@ -80,9 +83,10 @@ export default async function AdminPage() {
     (recentEateries ?? []).map((item) => [item.id, item.name] as const),
   );
   const metrics = [
-    { label: "Gross contributions", value: formatUsdFromCents(grossCents), detail: "Completed payments" },
-    { label: "Total refunded", value: formatUsdFromCents(refundedCents), detail: "Refunds recorded by Stripe" },
-    { label: "Net contributions", value: formatUsdFromCents(netCents), detail: "Gross less refunds" },
+    { label: "Gross donations", value: formatUsdFromCents(grossCents), detail: "Donation amounts, excluding the operational fee" },
+    { label: "Donations refunded", value: formatUsdFromCents(refundedCents), detail: "Donation portion of confirmed refunds" },
+    { label: "Net donations", value: formatUsdFromCents(netCents), detail: "Gross less refunds" },
+    { label: "Operational fees retained", value: formatUsdFromCents(feesRetainedCents), detail: "Before expenses. See Finance for the full picture" },
     { label: "Active holds", value: formatUsdFromCents(activeQrCount * 800), detail: `${activeQrCount} active meal passes` },
     { label: "Redeemed value", value: formatUsdFromCents(completedMealCount * 800), detail: `${completedMealCount} completed meals` },
     { label: "Pool balance", value: formatUsdFromCents(balanceCents), detail: "Append-only ledger sum" },
@@ -140,26 +144,36 @@ export default async function AdminPage() {
         {!recentContributions.length ? (
           <EmptyState title="No contributions yet" />
         ) : (
-          <TableShell>
+          <TableShell minWidth="44rem">
             <thead className="bg-muted/70 text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 font-medium">Date</th>
-                <th className="px-4 py-3 font-medium">Amount</th>
+                <th className="px-4 py-3 font-medium">Donation</th>
+                <th className="px-4 py-3 font-medium">Fee</th>
+                <th className="px-4 py-3 font-medium">Total charged</th>
                 <th className="px-4 py-3 font-medium">Refunded</th>
                 <th className="px-4 py-3 text-right font-medium">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {recentContributions.map((item) => {
-                const remaining = item.amount_cents - item.refunded_amount_cents;
+                const remaining = item.total_charged_cents - item.refunded_amount_cents - item.fee_refunded_cents;
                 return (
                   <tr key={item.id}>
                     <td className="px-4 py-3">{new Date(item.created_at).toLocaleString("en-US", { timeZone: "Pacific/Honolulu" })}</td>
                     <td className="px-4 py-3 font-medium">{formatUsdFromCents(item.amount_cents)}</td>
-                    <td className="px-4 py-3">{formatUsdFromCents(item.refunded_amount_cents)}</td>
+                    <td className="px-4 py-3">{formatUsdFromCents(item.operational_fee_cents)}</td>
+                    <td className="px-4 py-3">{formatUsdFromCents(item.total_charged_cents)}</td>
+                    <td className="px-4 py-3">{formatUsdFromCents(item.refunded_amount_cents + item.fee_refunded_cents)}</td>
                     <td className="px-4 py-3 text-right">
                       {remaining > 0 ? (
-                        <RefundContributionButton contributionId={item.id} />
+                        <RefundContributionButton
+                          contributionId={item.id}
+                          donationCents={item.amount_cents}
+                          feeCents={item.operational_fee_cents}
+                          refundedDonationCents={item.refunded_amount_cents}
+                          refundedFeeCents={item.fee_refunded_cents}
+                        />
                       ) : (
                         <Badge variant="outline">Fully refunded</Badge>
                       )}

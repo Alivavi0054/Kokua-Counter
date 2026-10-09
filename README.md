@@ -32,7 +32,11 @@ All roles use the same password login at `/auth/login`. Users must already exist
 4. Eatery staff scan the QR code. A database function atomically checks and redeems the pass, preventing the same pass from being accepted twice.
 5. Cancelled or expired holds are released back to the pool through ledger functions.
 
-The append-only `pool_ledger` is the source of truth for available funds. Application code must not write directly to that table. Stripe refunds are recorded through the webhook. **The app does not transfer money to eateries:** the charity/operator must reconcile completed redemptions and pay participating businesses outside the app.
+The append-only `pool_ledger` is the source of truth for available funds. Application code must not write directly to that table. Stripe refunds are recorded through the webhook. Admins can settle an eatery's completed redemptions from the pool through Stripe Connect transfers (see `lib/settlement.ts`).
+
+## Operational fee
+
+Each donation carries a **5% operational fee added on top** (a $8.00 donation is charged $8.40; the meal pool receives the full $8.00). The fee is configurable by admins, snapshotted per donation, tracked in its own ledger, and refunded proportionally. See [docs/FINANCE.md](docs/FINANCE.md) for the accounting model, refund allocation rules, failure handling and open business questions.
 
 ## Technology
 
@@ -187,6 +191,7 @@ npm run check:client-secrets
 
 Additional checks:
 
+- `npm test` runs the unit tests plus real-SQL tests (an in-memory Postgres via PGlite applies every migration). `npm run build && npm run test:permissions` checks every role against every page and API route using a mocked Supabase (dummy credentials only).
 - `npm run verify` executes the accounting scenarios in [supabase/tests/accounting.sql](supabase/tests/accounting.sql) using `DATABASE_URL`. Use a disposable test database only; the test script is not a production migration.
 - `npm run smoke` checks `/api/health`, unauthenticated QR generation, and cron authorization. The app must be running at `APP_URL` first.
 - `npm run db:setup` applies schema migrations; `npm run db:seed` writes the three test accounts.
