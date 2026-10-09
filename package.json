@@ -36,7 +36,6 @@
     "server-only": "^0.0.1",
     "stripe": "^23.0.0",
     "tailwind-merge": "^3.7.0",
-    "vitest": "^5.0.3",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -52,6 +51,7 @@
     "tailwindcss": "^4.3.3",
     "tailwindcss-animate": "^1.0.1",
     "tsx": "^4.19.2",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^5.0.3"
   }
 }
