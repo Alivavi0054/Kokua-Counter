@@ -5,6 +5,7 @@ import { listContributionsMissingProcessorFee, recordProcessorFee } from "@/lib/
 import { rateLimit } from "@/lib/rate-limit";
 import { getStripe } from "@/lib/stripe/client";
 import { fetchProcessorFee } from "@/lib/stripe/processor-fees";
+import { recordAdminAction } from "@/lib/audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,6 +44,7 @@ export async function POST() {
         console.error("admin/finance-reconcile: fee lookup failed", describeError(error));
       }
     }
+    await recordAdminAction({ actorId: auth.user.id, action: "finance.processor_fees_backfilled", details: { checked: missing.length, recorded, unavailable } });
     return NextResponse.json({ checked: missing.length, recorded, unavailable });
   } catch (error) {
     console.error("admin/finance-reconcile: failed", describeError(error));

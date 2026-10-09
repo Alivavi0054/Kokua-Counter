@@ -6,6 +6,7 @@ import { rollbackAuthUser } from "@/lib/admin-accounts";
 import { describeError } from "@/lib/errors";
 import { rateLimit } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { recordAdminAction } from "@/lib/audit";
 
 const createUserSchema = z.object({
   email: z.string().trim().email().max(254),
@@ -70,5 +71,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Could not create this account." }, { status: 500 });
   }
 
+  await recordAdminAction({ actorId: auth.user.id, action: "user.created", targetType: "user", targetId: created.user.id, details: { role } });
   return NextResponse.json({ message: "User created successfully.", id: created.user.id });
 }

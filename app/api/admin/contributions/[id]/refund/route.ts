@@ -6,6 +6,7 @@ import { databaseRefundDeps } from "@/lib/finance";
 import { rateLimit } from "@/lib/rate-limit";
 import { startRefund } from "@/lib/refunds";
 import { getStripe } from "@/lib/stripe/client";
+import { recordAdminAction } from "@/lib/audit";
 
 const uuidSchema = z.string().uuid();
 const requestKeySchema = z.string().regex(/^[A-Za-z0-9_-]{8,100}$/);
@@ -99,6 +100,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         { status: 202 },
       );
     case "started":
+      await recordAdminAction({
+        actorId: auth.user.id,
+        action: "refund.started",
+        targetType: "contribution",
+        targetId: id,
+        details: { refund_id: result.refundId, total_cents: result.amountCents, donation_cents: result.principalCents, fee_cents: result.feeCents, replay: result.replay },
+      });
       return NextResponse.json({
         message: "Refund started. The ledger will update once Stripe confirms it.",
         refund_id: result.refundId,

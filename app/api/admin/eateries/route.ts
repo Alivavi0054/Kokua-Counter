@@ -5,6 +5,7 @@ import { rollbackAuthUser } from "@/lib/admin-accounts";
 import { describeError } from "@/lib/errors";
 import { rateLimit } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { recordAdminAction } from "@/lib/audit";
 
 const createEaterySchema = z.object({
   name: z.string().trim().min(2).max(200),
@@ -93,6 +94,7 @@ export async function POST(request: Request) {
     });
 
     if (!eateryError) {
+      await recordAdminAction({ actorId: auth.user.id, action: "eatery.created", targetType: "eatery", targetId: slug });
       return NextResponse.json({ message: "Eatery created successfully.", slug });
     }
 

@@ -395,6 +395,26 @@ export type Database = {
         Update: never;
         Relationships: [];
       };
+      admin_audit_log: {
+        Row: {
+          id: string;
+          actor_user_id: string;
+          action: string;
+          target_type: string | null;
+          target_id: string | null;
+          details: Json | null;
+          created_at: string;
+        };
+        Insert: {
+          actor_user_id: string;
+          action: string;
+          target_type?: string | null;
+          target_id?: string | null;
+          details?: Json | null;
+        };
+        Update: never;
+        Relationships: [];
+      };
       organizations: {
         Row: {
           id: string;

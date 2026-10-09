@@ -5,6 +5,7 @@ import { createSettlement, markSettlementResult } from "@/lib/ledger";
 import { rateLimit } from "@/lib/rate-limit";
 import { settleEatery } from "@/lib/settlement";
 import { getStripe } from "@/lib/stripe/client";
+import { recordAdminAction } from "@/lib/audit";
 
 const uuidSchema = z.string().uuid();
 
@@ -45,6 +46,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     stripe,
     log: (message, detail) => console.error(`settle: ${message}`, detail),
   });
+
+  if (result.status !== "not_settleable") {
+    await recordAdminAction({
+      actorId: auth.user.id,
+      action: result.status === "paid" ? "settlement.paid" : result.status === "transfer_failed" ? "settlement.failed" : "settlement.needs_reconciliation",
+      targetType: "eatery",
+      targetId: id,
+      details: { settlement_id: result.settlementId, ...(result.status === "paid" ? { amount_cents: result.amountCents } : {}) },
+    });
+  }
 
   if (result.status === "not_settleable") {
     return NextResponse.json({ error: errorMessages[result.errorCode] }, { status: 409 });

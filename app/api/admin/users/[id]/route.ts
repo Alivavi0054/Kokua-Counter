@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireApiRole } from "@/lib/auth/guards";
 import { rateLimit } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { recordAdminAction } from "@/lib/audit";
 
 const updateSchema = z.object({
   is_active: z.boolean(),
@@ -54,5 +55,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Could not update user." }, { status: 500 });
   }
 
+  await recordAdminAction({
+    actorId: auth.user.id,
+    action: parsed.data.is_active ? "user.activated" : "user.deactivated",
+    targetType: "user",
+    targetId: id,
+  });
   return NextResponse.json({ message: "User updated." });
 }

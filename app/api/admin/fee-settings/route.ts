@@ -6,6 +6,7 @@ import { isValidFeeRateBps } from "@/lib/fees";
 import { getCurrentFeeRateBps, listFeeSettings, setOperationalFeeRate } from "@/lib/finance";
 import { rateLimit } from "@/lib/rate-limit";
 import { parseJsonBody } from "@/lib/security";
+import { recordAdminAction } from "@/lib/audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -65,5 +66,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Could not update the fee." }, { status: 500 });
   }
 
+  await recordAdminAction({
+    actorId: auth.user.id,
+    action: "fee.rate_changed",
+    targetType: "fee_settings",
+    details: { rate_bps: parsed.data.rate_bps, effective_at: parsed.data.effective_at ?? "now" },
+  });
   return NextResponse.json({ message: "Operational fee updated for future donations." });
 }

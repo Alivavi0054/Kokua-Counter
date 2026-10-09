@@ -11,6 +11,7 @@ const items = [
   { href: "/admin/eateries", label: "Eateries" },
   { href: "/admin/organizations", label: "Organizations" },
   { href: "/admin/registrations", label: "School registrations" },
+  { href: "/admin/audit", label: "Audit log" },
 ];
 
 export function AdminNav() {

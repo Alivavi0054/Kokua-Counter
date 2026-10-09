@@ -9,6 +9,7 @@ import { getStripe } from "@/lib/stripe/client";
 import { databaseWebhookDeps } from "@/lib/stripe/webhook-deps";
 import { applyProviderRefund } from "@/lib/stripe/webhook-handlers";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { recordAdminAction } from "@/lib/audit";
 
 const uuidSchema = z.string().uuid();
 
@@ -52,6 +53,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     if (refund.stripe_refund_id) {
       const remote = await stripe.refunds.retrieve(refund.stripe_refund_id);
       await applyProviderRefund(remote, databaseWebhookDeps());
+      await recordAdminAction({ actorId: auth.user.id, action: "refund.reconciled", targetType: "refund", targetId: id, details: { stripe_status: remote.status ?? "unknown" } });
       return NextResponse.json({ message: `Stripe reports this refund as ${remote.status ?? "unknown"}.` });
     }
 
@@ -77,6 +79,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       log: (message, detail) => console.error(`admin/refund-reconcile: ${message}`, detail),
     });
     if (result.status === "started") {
+      await recordAdminAction({ actorId: auth.user.id, action: "refund.reconciled", targetType: "refund", targetId: id, details: { resubmitted: true } });
       return NextResponse.json({ message: "Refund submitted to Stripe. The ledger updates when Stripe confirms it." });
     }
     return NextResponse.json({ error: "Stripe could not confirm this refund. Try again shortly." }, { status: 502 });

@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   role: "admin" as "admin" | "student" | "eatery" | null,
   setOperationalFeeRate: vi.fn(),
   startRefund: vi.fn(),
+  recordAdminAction: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/guards", async () => {
@@ -24,6 +25,7 @@ vi.mock("@/lib/finance", () => ({
   databaseRefundDeps: () => ({}),
 }));
 vi.mock("@/lib/refunds", () => ({ startRefund: mocks.startRefund }));
+vi.mock("@/lib/audit", () => ({ recordAdminAction: mocks.recordAdminAction }));
 vi.mock("@/lib/stripe/client", () => ({ getStripe: () => ({}) }));
 
 import { POST as postRefund } from "@/app/api/admin/contributions/[id]/refund/route";
@@ -59,6 +61,7 @@ describe("fee settings authorization and validation", () => {
     const response = await postFee(json("/api/admin/fee-settings", { rate_bps: 750, note: "Hosting costs" }));
     expect(response.status).toBe(200);
     expect(mocks.setOperationalFeeRate).toHaveBeenCalledWith({ rateBps: 750, effectiveAt: null, createdBy: "admin-1", note: "Hosting costs" });
+    expect(mocks.recordAdminAction).toHaveBeenCalledWith(expect.objectContaining({ actorId: "admin-1", action: "fee.rate_changed", details: expect.objectContaining({ rate_bps: 750 }) }));
   });
 
   it("rejects invalid rates and unknown fields", async () => {
@@ -82,6 +85,7 @@ describe("refund endpoint authorization and mapping", () => {
       expect((await postRefund(json("/x", {}), refundParams)).status).toBe(role ? 403 : 401);
     }
     expect(mocks.startRefund).not.toHaveBeenCalled();
+    expect(mocks.recordAdminAction).not.toHaveBeenCalled();
   });
 
   it("passes the admin, amount, reason and idempotency key to the workflow", async () => {
@@ -90,6 +94,9 @@ describe("refund endpoint authorization and mapping", () => {
     expect(response.status).toBe(200);
     expect(mocks.startRefund.mock.calls[0][0]).toEqual({ contributionId: CONTRIBUTION, amountCents: 420, reason: "Duplicate gift", requestedBy: "admin-1", idempotencyRef: "click-12345678" });
     expect((await response.json()).refund).toEqual({ total_cents: 420, donation_cents: 400, operational_fee_cents: 20 });
+    expect(mocks.recordAdminAction).toHaveBeenCalledWith(
+      expect.objectContaining({ actorId: "admin-1", action: "refund.started", targetId: CONTRIBUTION, details: expect.objectContaining({ total_cents: 420, donation_cents: 400, fee_cents: 20 }) }),
+    );
   });
 
   it("maps rejections, failures and unknown outcomes to clear statuses", async () => {

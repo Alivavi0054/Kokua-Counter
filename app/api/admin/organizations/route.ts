@@ -4,6 +4,7 @@ import { requireApiRole } from "@/lib/auth/guards";
 import { describeError } from "@/lib/errors";
 import { createOrganization } from "@/lib/organization-store";
 import { rateLimit } from "@/lib/rate-limit";
+import { recordAdminAction } from "@/lib/audit";
 
 const organizationSchema = z.object({
   name: z.string().trim().min(2).max(200),
@@ -60,5 +61,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Could not create the organization." }, { status: 500 });
   }
 
+  await recordAdminAction({ actorId: auth.user.id, action: "organization.created", targetType: "organization" });
   return NextResponse.json({ message: "Organization created successfully." });
 }
