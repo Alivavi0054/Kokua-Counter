@@ -47,15 +47,8 @@ export function EateryScanner() {
     return () => {
       const scanner = scannerRef.current;
       if (scanner && scanner.isScanning) {
-        console.log("[Camera] Cleanup: Stopping scanner on unmount");
         void scanner.stop()
-          .then(() => {
-            console.log("[Camera] Cleanup: Scanner stopped");
-            return scanner.clear();
-          })
-          .then(() => {
-            console.log("[Camera] Cleanup: Scanner cleared");
-          })
+          .then(() => scanner.clear())
           .catch((error) => {
             console.error("[Camera] Cleanup error:", error);
           });
@@ -79,7 +72,6 @@ export function EateryScanner() {
     try {
       // First stop any existing scanner to release camera
       if (scannerRef.current && scannerRef.current.isScanning) {
-        console.log("[Camera] Stopping previous scanner to release camera...");
         await scannerRef.current.stop();
         await scannerRef.current.clear();
         scannerRef.current = null;
@@ -87,30 +79,24 @@ export function EateryScanner() {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
 
-      console.log("[Camera] 1. Checking browser support...");
-      console.log("[Camera] 2. Loading html5-qrcode library...");
       
       // Load QR code scanner library
       const { Html5Qrcode } = await import("html5-qrcode");
       
-      console.log("[Camera] 3. Getting available cameras...");
       const cameras = await Html5Qrcode.getCameras();
       
       if (!cameras || cameras.length === 0) {
         throw new DOMException("No camera found on this device.", "NotFoundError");
       }
 
-      console.log("[Camera] 4. Found", cameras.length, "camera(s):", cameras.map(c => c.label).join(", "));
 
       // Prefer rear/environment camera for phone usage
       const camera = cameras.find((device) => /back|rear|environment/i.test(device.label)) ?? cameras[0];
-      console.log("[Camera] 5. Selected camera:", camera.label);
 
       // Create new scanner instance
       const scanner = new Html5Qrcode("eatery-qr-reader");
       scannerRef.current = scanner;
       
-      console.log("[Camera] 6. Starting scanner (will request permission now)...");
       
       // Start scanner - this will trigger the permission popup if needed
       await scanner.start(
@@ -125,7 +111,6 @@ export function EateryScanner() {
           processingRef.current = true;
           setScanning(false);
           
-          console.log("[QR] Decoded token, stopping scanner...");
           try {
             await scanner.stop();
           } catch (error) {
@@ -133,7 +118,6 @@ export function EateryScanner() {
           }
           
           const token = parseQrPayload(decodedText) ?? decodedText;
-          console.log("[QR] Submitting to redeem endpoint...");
           
           try {
             const response = await fetch("/api/qr/redeem", {
@@ -163,7 +147,6 @@ export function EateryScanner() {
         () => undefined, // No error callback - handle errors via catch
       );
       
-      console.log("[Camera] 7. Scanner started successfully - waiting for QR code...");
       setScanning(true);
       setStarting(false);
     } catch (error) {
