@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isUserRole, roleHome } from "@/lib/auth/roles";
 import { getSupabasePublicEnv } from "@/lib/env";
+import { isAllowedRedirect } from "@/lib/security";
 
 function parseHttpOrigin(value: string | null): string | null {
   if (!value) return null;
@@ -132,6 +134,34 @@ export async function proxy(request: NextRequest) {
     url.pathname = "/auth/login";
     url.searchParams.set("next", path);
     return addSecurityHeaders(NextResponse.redirect(url));
+  }
+
+  // Fast, correct-status role routing. The role layouts still enforce access (defense in
+  // depth); this just makes a wrong-role visit an instant 307 instead of a streamed redirect.
+  const area = path.startsWith("/admin")
+    ? "admin"
+    : path.startsWith("/eatery")
+      ? "eatery"
+      : path.startsWith("/student")
+        ? "student"
+        : null;
+  if (user && (area || path === "/auth/login") && request.method === "GET") {
+    const { data: profile } = await supabase
+      .from("users")
+      .select("role, is_active")
+      .eq("id", user.id)
+      .maybeSingle();
+    const role = profile?.is_active && typeof profile.role === "string" && isUserRole(profile.role)
+      ? profile.role
+      : null;
+    if (role && area && role !== area) {
+      return addSecurityHeaders(NextResponse.redirect(new URL(roleHome(role), request.url)));
+    }
+    if (role && path === "/auth/login") {
+      const next = isAllowedRedirect(request.nextUrl.searchParams.get("next"));
+      const target = request.nextUrl.searchParams.get("next") ? next : null;
+      return addSecurityHeaders(NextResponse.redirect(new URL(target ?? roleHome(role), request.url)));
+    }
   }
 
   return addSecurityHeaders(supabaseResponse);
