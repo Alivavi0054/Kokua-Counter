@@ -62,7 +62,7 @@ async function main() {
   console.log(`Pool balance: ${balanceCents} cents`);
 }
 
-main().catch((error) => {
+main().catch(() => {
   console.error("dev:credit failed. Check the Supabase connection and service-role configuration.");
   process.exit(1);
 });

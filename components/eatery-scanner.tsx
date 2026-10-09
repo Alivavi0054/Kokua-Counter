@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { parseQrPayload } from "@/lib/crypto/parse-qr";
-import { Button } from "@/components/ui/button";
 
 function getCameraErrorMessage(error: unknown): string {
   console.error("[Camera Error Details]", {
@@ -205,7 +204,7 @@ export function EateryScanner() {
           <div className="text-xs text-red-700 mt-3 space-y-2">
             <p><strong>Troubleshooting:</strong></p>
             <ul className="list-disc list-inside space-y-1">
-              <li>On your phone: Look for Chrome's address bar lock icon (🔒) → Camera → change to "Allow"</li>
+              <li>On your phone: Look for Chrome&apos;s address bar lock icon (🔒) → Camera → change to &quot;Allow&quot;</li>
               <li>Then refresh this page and try again</li>
               <li>If you still see errors, close Chrome completely and reopen it</li>
             </ul>
@@ -238,13 +237,13 @@ export function EateryScanner() {
       {scanning && (
         <div className="rounded-md bg-green-50 p-3 border border-green-200">
           <p className="text-sm font-medium text-green-900">✓ Camera is active and scanning</p>
-          <p className="text-xs text-green-700">Point the phone at the student's QR code.</p>
+          <p className="text-xs text-green-700">Point the phone at the student&apos;s QR code.</p>
         </div>
       )}
       
       {!scanning && !starting && !cameraError && (
         <p className="text-sm text-muted-foreground">
-          Center the student's QR code in the camera frame. Scanned content is used only to verify the pass.
+          Center the student&apos;s QR code in the camera frame. Scanned content is used only to verify the pass.
         </p>
       )}
     </div>
