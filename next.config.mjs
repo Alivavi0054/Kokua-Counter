@@ -8,6 +8,11 @@ const nextConfig = {
   async headers() {
     return [
       {
+        // Photos rarely change; let browsers and the CDN reuse them (next/image handles resizing).
+        source: "/images/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" }],
+      },
+      {
         source: "/eatery/scan",
         headers: [
           { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=()" },

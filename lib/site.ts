@@ -18,3 +18,12 @@ export function isStripeTestMode(): boolean {
   const testKeyPrefix = ["sk", "test", ""].join("_");
   return process.env.STRIPE_SECRET_KEY?.trim().startsWith(testKeyPrefix) ?? false;
 }
+
+/** Canonical public origin for metadata, the sitemap and share links. Falls back safely if APP_URL is unset or invalid. */
+export function getSiteUrl(): URL {
+  try {
+    return new URL(process.env.APP_URL?.trim() || "http://localhost:3000");
+  } catch {
+    return new URL("http://localhost:3000");
+  }
+}
