@@ -17,7 +17,7 @@
     "check:secrets": "tsx scripts/check-secrets.ts",
     "audit:ci": "npm audit --omit=dev --audit-level=high",
     "smoke": "tsx --env-file=.env.local scripts/smoke.ts",
-    "setup:connect": "node scripts/enable-stripe-connect.js"
+    "setup:connect": "node scripts/enable-stripe-connect.mjs"
   },
   "dependencies": {
     "@radix-ui/react-label": "^2.1.16",

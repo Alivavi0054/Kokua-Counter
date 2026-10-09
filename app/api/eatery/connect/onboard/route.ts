@@ -8,7 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function POST(request: Request) {
+export async function POST() {
   const auth = await requireApiRole("eatery");
   if (!auth.ok) return auth.response;
 

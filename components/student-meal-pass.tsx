@@ -127,6 +127,9 @@ export function StudentMealPass() {
         clearPersistedPass();
         return;
       }
+      // Restoring from sessionStorage must run after mount: reading it during render would
+      // differ between server and client and break hydration. This runs once ([] deps).
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setToken(parsed.token);
       setQrId(parsed.qrId);
       setExpiresAt(parsed.expiresAt);
