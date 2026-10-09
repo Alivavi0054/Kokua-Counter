@@ -1,11 +1,6 @@
-"use client";
-
-import { useMemo, useState } from "react";
 import { EateryActiveToggle } from "@/components/admin-eatery-toggle";
 import { SettleEateryButton } from "@/components/admin-settle-eatery-button";
 import { Badge } from "@/components/ui/badge";
-import { EmptyState } from "@/components/empty-state";
-import { Input } from "@/components/ui/input";
 import { TableShell } from "@/components/ui/table-shell";
 
 type Eatery = {
@@ -19,31 +14,8 @@ type Eatery = {
 };
 
 export function AdminEateriesTable({ eateries }: { eateries: Eatery[] }) {
-  const [query, setQuery] = useState("");
-
-  const filtered = useMemo(() => {
-    const term = query.trim().toLowerCase();
-    if (!term) return eateries;
-    return eateries.filter((eatery) =>
-      [eatery.name, eatery.island, eatery.address, eatery.contact_email].some((field) =>
-        field.toLowerCase().includes(term),
-      ),
-    );
-  }, [eateries, query]);
-
   return (
-    <div className="space-y-3">
-      <Input
-        placeholder="Search by name, island, address, or email"
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        className="max-w-sm"
-        aria-label="Search eateries"
-      />
-      {filtered.length === 0 ? (
-        <EmptyState title="No eateries match your search" />
-      ) : (
-        <TableShell minWidth="44rem">
+    <TableShell minWidth="44rem">
             <thead className="bg-muted/70 text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 font-medium">Name</th>
@@ -55,7 +27,7 @@ export function AdminEateriesTable({ eateries }: { eateries: Eatery[] }) {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {filtered.map((eatery) => (
+              {eateries.map((eatery) => (
                 <tr key={eatery.id}>
                   <td className="px-4 py-3">
                     <p className="font-medium text-foreground">{eatery.name}</p>
@@ -83,7 +55,5 @@ export function AdminEateriesTable({ eateries }: { eateries: Eatery[] }) {
               ))}
             </tbody>
         </TableShell>
-      )}
-    </div>
   );
 }

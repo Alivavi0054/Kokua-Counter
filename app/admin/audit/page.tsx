@@ -3,7 +3,9 @@ import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { TableShell } from "@/components/ui/table-shell";
+import { ListSearch, Pagination } from "@/components/list-controls";
 import { requireRole } from "@/lib/auth/guards";
+import { pageRange, parseListParams, totalPages } from "@/lib/pagination";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -12,14 +14,20 @@ export const metadata: Metadata = {
   description: "Who changed what in the Kōkua Counter admin tools.",
 };
 
-export default async function AdminAuditPage() {
+export default async function AdminAuditPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; q?: string }>;
+}) {
   await requireRole("admin");
+  const { page, q } = parseListParams(await searchParams);
+  const { from, to } = pageRange(page, 50);
   const admin = createAdminClient();
-  const { data: entries, error } = await admin
+  let query = admin
     .from("admin_audit_log")
-    .select("id, actor_user_id, action, target_type, target_id, details, created_at")
-    .order("created_at", { ascending: false })
-    .limit(200);
+    .select("id, actor_user_id, action, target_type, target_id, details, created_at", { count: "exact" });
+  if (q) query = query.ilike("action", `%${q}%`);
+  const { data: entries, error, count } = await query.order("created_at", { ascending: false }).range(from, to);
   if (error) throw new Error("Could not load the audit log.");
 
   const actorIds = Array.from(new Set((entries ?? []).map((entry) => entry.actor_user_id)));
@@ -33,8 +41,9 @@ export default async function AdminAuditPage() {
       <PageHeader
         eyebrow="Admin"
         title="Audit log"
-        description="A permanent, append-only record of fee changes, refunds, payouts, account changes and exports. Showing the latest 200 entries."
+        description="A permanent, append-only record of fee changes, refunds, payouts, account changes and exports. Search by action, for example “refund” or “fee”."
       />
+      <ListSearch q={q} placeholder="Filter by action (e.g. refund)" clearHref="/admin/audit" />
       {!entries?.length ? (
         <EmptyState title="Nothing recorded yet">Admin actions will appear here as they happen.</EmptyState>
       ) : (
@@ -64,6 +73,7 @@ export default async function AdminAuditPage() {
           </tbody>
         </TableShell>
       )}
+      <Pagination basePath="/admin/audit" page={page} pages={totalPages(count ?? 0, 50)} total={count ?? 0} params={{ q }} />
     </div>
   );
 }

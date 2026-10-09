@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TableShell } from "@/components/ui/table-shell";
+import Link from "next/link";
 import type { Metadata } from "next";
 import { RefundContributionButton } from "@/components/admin-refund-button";
 import { requireRole } from "@/lib/auth/guards";
@@ -140,7 +141,10 @@ export default async function AdminPage() {
         )}
       </section>
       <section className="space-y-3">
-        <h2 className="font-serif text-2xl font-semibold text-primary">Recent contributions</h2>
+        <div className="flex items-end justify-between gap-3">
+          <h2 className="font-serif text-2xl font-semibold text-primary">Recent contributions</h2>
+          <Link href="/admin/contributions" className="text-sm font-medium text-primary underline underline-offset-4">View all</Link>
+        </div>
         {!recentContributions.length ? (
           <EmptyState title="No contributions yet" />
         ) : (

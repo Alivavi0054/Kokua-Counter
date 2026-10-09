@@ -89,7 +89,7 @@ check("safe next is honored", (await login("student@hawaii.edu", "pw", "/student
 // ---- 3. role x area matrix (pages)
 const roles = { admin: sessions["admin@example.com"], eatery: sessions["eatery@example.com"], student: sessions["student@hawaii.edu"] };
 const home = { admin: "/admin", eatery: "/eatery", student: "/student" };
-const areas = { admin: ["/admin", "/admin/finance", "/admin/users", "/admin/eateries", "/admin/organizations", "/admin/registrations", "/admin/audit"], eatery: ["/eatery", "/eatery/scan"], student: ["/student", "/student/history", "/student/meal"] };
+const areas = { admin: ["/admin", "/admin/finance", "/admin/contributions", "/admin/users", "/admin/eateries", "/admin/organizations", "/admin/registrations", "/admin/audit"], eatery: ["/eatery", "/eatery/scan"], student: ["/student", "/student/history", "/student/meal"] };
 for (const [role, cookie] of Object.entries(roles)) {
   for (const [areaRole, pages] of Object.entries(areas)) {
     for (const p of pages) {

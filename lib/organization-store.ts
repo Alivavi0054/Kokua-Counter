@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { orIlike, pageRange, PAGE_SIZE } from "@/lib/pagination";
 import type { Database } from "@/types/database";
 
 export type OrganizationRecord = {
@@ -32,8 +33,8 @@ export type SchoolRegistrationRecord = {
 type OrganizationRow = Database["public"]["Tables"]["organizations"]["Row"];
 type SchoolRegistrationRow = Database["public"]["Tables"]["school_registrations"]["Row"];
 
-// Admin lists are not paginated yet; PostgREST caps responses at 1000 rows anyway.
-const LIST_LIMIT = 1000;
+// Unpaginated reads (CSV exports) are capped well above any realistic size.
+const EXPORT_LIMIT = 5000;
 
 function toOptional(value: string | null): string | undefined {
   return value === null ? undefined : value;
@@ -77,7 +78,7 @@ export async function listOrganizations(): Promise<OrganizationRecord[]> {
     .from("organizations")
     .select("*")
     .order("created_at", { ascending: false })
-    .limit(LIST_LIMIT);
+    .limit(EXPORT_LIMIT);
   if (error) throw error;
   return (data ?? []).map(toOrganization);
 }
@@ -107,7 +108,7 @@ export async function listSchoolRegistrations(): Promise<SchoolRegistrationRecor
     .from("school_registrations")
     .select("*")
     .order("created_at", { ascending: false })
-    .limit(LIST_LIMIT);
+    .limit(EXPORT_LIMIT);
   if (error) throw error;
   return (data ?? []).map(toSchoolRegistration);
 }
@@ -130,4 +131,26 @@ export async function createSchoolRegistration(input: Omit<SchoolRegistrationRec
     .single();
   if (error) throw error;
   return toSchoolRegistration(data);
+}
+
+export type Page<T> = { items: T[]; total: number };
+
+export type PageQuery = { page: number; q: string; pageSize?: number };
+
+export async function searchOrganizations({ page, q, pageSize = PAGE_SIZE }: PageQuery): Promise<Page<OrganizationRecord>> {
+  const { from, to } = pageRange(page, pageSize);
+  let query = createAdminClient().from("organizations").select("*", { count: "exact" });
+  if (q) query = query.or(orIlike(["name", "contact_name", "email", "city"], q));
+  const { data, error, count } = await query.order("created_at", { ascending: false }).range(from, to);
+  if (error) throw error;
+  return { items: (data ?? []).map(toOrganization), total: count ?? 0 };
+}
+
+export async function searchSchoolRegistrations({ page, q, pageSize = PAGE_SIZE }: PageQuery): Promise<Page<SchoolRegistrationRecord>> {
+  const { from, to } = pageRange(page, pageSize);
+  let query = createAdminClient().from("school_registrations").select("*", { count: "exact" });
+  if (q) query = query.or(orIlike(["school_name", "contact_name", "email", "city"], q));
+  const { data, error, count } = await query.order("created_at", { ascending: false }).range(from, to);
+  if (error) throw error;
+  return { items: (data ?? []).map(toSchoolRegistration), total: count ?? 0 };
 }
