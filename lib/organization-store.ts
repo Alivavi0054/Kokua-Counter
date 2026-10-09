@@ -1,7 +1,6 @@
-import { promises as fs } from "node:fs";
-import path from "node:path";
-
-const STORAGE_DIR = process.env.KOKUA_DATA_DIR ?? "/tmp/kokua-counter-data";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { orIlike, pageRange, PAGE_SIZE } from "@/lib/pagination";
+import type { Database } from "@/types/database";
 
 export type OrganizationRecord = {
   id: string;
@@ -31,57 +30,127 @@ export type SchoolRegistrationRecord = {
   createdAt: string;
 };
 
-async function readJson<T>(fileName: string, fallback: T): Promise<T> {
-  const filePath = path.join(STORAGE_DIR, fileName);
-  try {
-    const text = await fs.readFile(filePath, "utf8");
-    if (!text.trim()) return fallback;
-    return JSON.parse(text) as T;
-  } catch {
-    await fs.mkdir(STORAGE_DIR, { recursive: true });
-    await fs.writeFile(filePath, JSON.stringify(fallback, null, 2), "utf8");
-    return fallback;
-  }
+type OrganizationRow = Database["public"]["Tables"]["organizations"]["Row"];
+type SchoolRegistrationRow = Database["public"]["Tables"]["school_registrations"]["Row"];
+
+// Unpaginated reads (CSV exports) are capped well above any realistic size.
+const EXPORT_LIMIT = 5000;
+
+function toOptional(value: string | null): string | undefined {
+  return value === null ? undefined : value;
 }
 
-async function writeJson<T>(fileName: string, value: T) {
-  const filePath = path.join(STORAGE_DIR, fileName);
-  try {
-    await fs.mkdir(STORAGE_DIR, { recursive: true });
-    await fs.writeFile(filePath, JSON.stringify(value, null, 2), "utf8");
-  } catch (error) {
-    console.warn(`Storage write failed for ${fileName}:`, error);
-  }
+function toOrganization(row: OrganizationRow): OrganizationRecord {
+  return {
+    id: row.id,
+    name: row.name,
+    mission: toOptional(row.mission),
+    contactName: row.contact_name,
+    email: row.email,
+    phone: toOptional(row.phone),
+    city: toOptional(row.city),
+    state: toOptional(row.state),
+    website: toOptional(row.website),
+    notes: toOptional(row.notes),
+    createdAt: row.created_at,
+  };
 }
 
+function toSchoolRegistration(row: SchoolRegistrationRow): SchoolRegistrationRecord {
+  return {
+    id: row.id,
+    schoolName: row.school_name,
+    contactName: row.contact_name,
+    email: row.email,
+    phone: toOptional(row.phone),
+    schoolType: toOptional(row.school_type),
+    students: toOptional(row.students),
+    city: toOptional(row.city),
+    state: toOptional(row.state),
+    message: toOptional(row.message),
+    createdAt: row.created_at,
+  };
+}
+
+// Storage errors are thrown, never swallowed: a failed read must not look like "no data".
 export async function listOrganizations(): Promise<OrganizationRecord[]> {
-  return readJson<OrganizationRecord[]>("organizations.json", []);
+  const { data, error } = await createAdminClient()
+    .from("organizations")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(EXPORT_LIMIT);
+  if (error) throw error;
+  return (data ?? []).map(toOrganization);
 }
 
 export async function createOrganization(input: Omit<OrganizationRecord, "id" | "createdAt">): Promise<OrganizationRecord> {
-  const organizations = await listOrganizations();
-  const record: OrganizationRecord = {
-    ...input,
-    id: crypto.randomUUID(),
-    createdAt: new Date().toISOString(),
-  };
-  organizations.unshift(record);
-  await writeJson("organizations.json", organizations);
-  return record;
+  const { data, error } = await createAdminClient()
+    .from("organizations")
+    .insert({
+      name: input.name,
+      mission: input.mission ?? null,
+      contact_name: input.contactName,
+      email: input.email,
+      phone: input.phone ?? null,
+      city: input.city ?? null,
+      state: input.state ?? null,
+      website: input.website ?? null,
+      notes: input.notes ?? null,
+    })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return toOrganization(data);
 }
 
 export async function listSchoolRegistrations(): Promise<SchoolRegistrationRecord[]> {
-  return readJson<SchoolRegistrationRecord[]>("school-registrations.json", []);
+  const { data, error } = await createAdminClient()
+    .from("school_registrations")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(EXPORT_LIMIT);
+  if (error) throw error;
+  return (data ?? []).map(toSchoolRegistration);
 }
 
 export async function createSchoolRegistration(input: Omit<SchoolRegistrationRecord, "id" | "createdAt">): Promise<SchoolRegistrationRecord> {
-  const records = await listSchoolRegistrations();
-  const record: SchoolRegistrationRecord = {
-    ...input,
-    id: crypto.randomUUID(),
-    createdAt: new Date().toISOString(),
-  };
-  records.unshift(record);
-  await writeJson("school-registrations.json", records);
-  return record;
+  const { data, error } = await createAdminClient()
+    .from("school_registrations")
+    .insert({
+      school_name: input.schoolName,
+      contact_name: input.contactName,
+      email: input.email,
+      phone: input.phone ?? null,
+      school_type: input.schoolType ?? null,
+      students: input.students ?? null,
+      city: input.city ?? null,
+      state: input.state ?? null,
+      message: input.message ?? null,
+    })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return toSchoolRegistration(data);
+}
+
+export type Page<T> = { items: T[]; total: number };
+
+export type PageQuery = { page: number; q: string; pageSize?: number };
+
+export async function searchOrganizations({ page, q, pageSize = PAGE_SIZE }: PageQuery): Promise<Page<OrganizationRecord>> {
+  const { from, to } = pageRange(page, pageSize);
+  let query = createAdminClient().from("organizations").select("*", { count: "exact" });
+  if (q) query = query.or(orIlike(["name", "contact_name", "email", "city"], q));
+  const { data, error, count } = await query.order("created_at", { ascending: false }).range(from, to);
+  if (error) throw error;
+  return { items: (data ?? []).map(toOrganization), total: count ?? 0 };
+}
+
+export async function searchSchoolRegistrations({ page, q, pageSize = PAGE_SIZE }: PageQuery): Promise<Page<SchoolRegistrationRecord>> {
+  const { from, to } = pageRange(page, pageSize);
+  let query = createAdminClient().from("school_registrations").select("*", { count: "exact" });
+  if (q) query = query.or(orIlike(["school_name", "contact_name", "email", "city"], q));
+  const { data, error, count } = await query.order("created_at", { ascending: false }).range(from, to);
+  if (error) throw error;
+  return { items: (data ?? []).map(toSchoolRegistration), total: count ?? 0 };
 }

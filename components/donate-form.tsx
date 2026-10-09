@@ -1,24 +1,30 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { FeeBreakdown } from "@/components/fee-breakdown";
+import { calculateFeeBreakdown } from "@/lib/fees";
 import {
   MAX_DONATION_CENTS,
   MEAL_VALUE_CENTS,
   PRESET_DONATION_CENTS,
 } from "@/lib/public-constants";
 import { formatUsdFromCents, mealsFromCents } from "@/lib/utils";
+import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function DonateForm() {
+export function DonateForm({ feeRateBps: initialFeeRateBps }: { feeRateBps: number }) {
   const [preset, setPreset] = useState<number | "custom">(PRESET_DONATION_CENTS[0]);
   const [customDollars, setCustomDollars] = useState("8");
   const [email, setEmail] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [feeRateBps, setFeeRateBps] = useState(initialFeeRateBps);
+  // One key per attempt: a retry of the same attempt can never charge twice; a new amount gets a new key.
+  const [attempt, setAttempt] = useState(() => ({ key: crypto.randomUUID(), amountCents: 0 }));
 
   const amountCents =
     preset === "custom"
@@ -29,27 +35,43 @@ export function DonateForm() {
   const amountIsValid = customIsWholeDollar && Number.isSafeInteger(amountCents) &&
     amountCents >= MEAL_VALUE_CENTS && amountCents <= MAX_DONATION_CENTS;
 
+  // Preview only: the server recalculates everything and is the source of truth.
+  const breakdown = amountIsValid ? calculateFeeBreakdown(amountCents, feeRateBps) : null;
+
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
+    if (!breakdown) return;
     setError(null);
     setPending(true);
+    const requestKey = attempt.amountCents === amountCents ? attempt.key : crypto.randomUUID();
+    if (requestKey !== attempt.key) setAttempt({ key: requestKey, amountCents });
     try {
       const response = await fetch("/api/donate/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Idempotency-Key": requestKey },
         body: JSON.stringify({
           amount_cents: amountCents,
+          expected_total_cents: breakdown.totalChargedCents,
           donor_email: email.trim() || undefined,
           is_anonymous: isAnonymous,
         }),
       });
-      const payload = (await response.json()) as { url?: string; error?: string };
+      const payload = (await response.json()) as {
+        url?: string;
+        error?: string;
+        breakdown?: { operational_fee_rate_bps?: number };
+      };
       if (!response.ok || !payload.url) {
+        // A definitive answer from the server: the next attempt is a fresh one.
+        setAttempt({ key: crypto.randomUUID(), amountCents: 0 });
+        if (response.status === 409 && typeof payload.breakdown?.operational_fee_rate_bps === "number") {
+          setFeeRateBps(payload.breakdown.operational_fee_rate_bps);
+        }
         setError(payload.error ?? "Could not start checkout.");
         setPending(false);
         return;
       }
-      window.location.href = payload.url;
+      window.location.assign(payload.url);
     } catch {
       setError("Could not start checkout.");
       setPending(false);
@@ -61,7 +83,7 @@ export function DonateForm() {
       <CardHeader>
         <CardTitle>Fund meal credits</CardTitle>
         <CardDescription>
-          Each {formatUsdFromCents(MEAL_VALUE_CENTS)} adds one meal to a shared
+          Each {formatUsdFromCents(MEAL_VALUE_CENTS)} you donate adds one meal to a shared
           pool used at participating eateries. Donations are anonymous by default.
         </CardDescription>
       </CardHeader>
@@ -117,6 +139,15 @@ export function DonateForm() {
             </p>
           </fieldset>
 
+          {breakdown ? (
+            <FeeBreakdown
+              donationCents={breakdown.principalCents}
+              feeCents={breakdown.operationalFeeCents}
+              feeRateBps={breakdown.feeRateBps}
+              totalCents={breakdown.totalChargedCents}
+            />
+          ) : null}
+
           <div className="space-y-2">
             <Label htmlFor="donor-email">Email for Stripe receipt (optional)</Label>
             <Input
@@ -131,7 +162,7 @@ export function DonateForm() {
           <label className="flex items-start gap-2 text-sm">
             <input
               type="checkbox"
-              className="mt-1"
+              className="mt-0.5 size-4 accent-[hsl(var(--primary))]"
               checked={isAnonymous}
               onChange={(event) => setIsAnonymous(event.target.checked)}
             />
@@ -139,13 +170,11 @@ export function DonateForm() {
           </label>
 
           {error ? (
-            <p className="text-sm text-destructive" role="alert">
-              {error}
-            </p>
+            <Alert variant="destructive">{error}</Alert>
           ) : null}
 
-          <Button type="submit" className="w-full" disabled={pending || !amountIsValid}>
-            {pending ? "Redirecting to checkout…" : "Continue to checkout"}
+          <Button type="submit" size="lg" variant="accent" className="w-full" disabled={pending || !amountIsValid}>
+            {pending ? "Redirecting to checkout…" : breakdown ? `Pay ${formatUsdFromCents(breakdown.totalChargedCents)}` : "Continue to checkout"}
           </Button>
         </form>
       </CardContent>

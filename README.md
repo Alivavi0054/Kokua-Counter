@@ -32,11 +32,15 @@ All roles use the same password login at `/auth/login`. Users must already exist
 4. Eatery staff scan the QR code. A database function atomically checks and redeems the pass, preventing the same pass from being accepted twice.
 5. Cancelled or expired holds are released back to the pool through ledger functions.
 
-The append-only `pool_ledger` is the source of truth for available funds. Application code must not write directly to that table. Stripe refunds are recorded through the webhook. **The app does not transfer money to eateries:** the charity/operator must reconcile completed redemptions and pay participating businesses outside the app.
+The append-only `pool_ledger` is the source of truth for available funds. Application code must not write directly to that table. Stripe refunds are recorded through the webhook. Admins can settle an eatery's completed redemptions from the pool through Stripe Connect transfers (see `lib/settlement.ts`).
+
+## Operational fee
+
+Each donation carries a **5% operational fee added on top** (a $8.00 donation is charged $8.40; the meal pool receives the full $8.00). The fee is configurable by admins, snapshotted per donation, tracked in its own ledger, and refunded proportionally. See [docs/FINANCE.md](docs/FINANCE.md) for the accounting model, refund allocation rules, failure handling and open business questions.
 
 ## Technology
 
-- Next.js 14 App Router, React, and TypeScript
+- Next.js 16 App Router, React 19, and TypeScript
 - Supabase Auth, PostgreSQL, row-level security, and server-side service-role operations
 - Stripe Checkout and signed webhooks
 - `html5-qrcode` for eatery pass scanning
@@ -44,7 +48,7 @@ The append-only `pool_ledger` is the source of truth for available funds. Applic
 
 ## Requirements
 
-- Node.js 20 LTS recommended (Next.js requires Node.js 18.17 or newer)
+- Node.js 20.9 or newer (Node 22 LTS recommended; required by Next.js 16)
 - npm
 - A Supabase project, or a local Supabase stack
 - A Stripe account for donation checkout; Stripe test mode is sufficient for development
@@ -80,7 +84,7 @@ The append-only `pool_ledger` is the source of truth for available funds. Applic
    npm run dev
    ```
 
-   Open the URL printed by Next.js. By default this is `http://localhost:3000`. If port 3000 is busy, start with an explicit port, for example `npm run dev -- --port 3002`, and set `NEXT_PUBLIC_APP_URL` to that same origin before restarting. Stripe Checkout return URLs use this setting.
+   Open the URL printed by Next.js. By default this is `http://localhost:3000`. If port 3000 is busy, start with an explicit port, for example `npm run dev -- --port 3002`, and set `APP_URL` to that same origin before restarting. Stripe Checkout return URLs use this setting.
 7. Check the application and database schema:
 
    ```sh
@@ -95,13 +99,12 @@ Copy `.env.example` to `.env.local`. The example documents all supported values.
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `NEXT_PUBLIC_APP_URL` | Yes | Canonical app origin used for Stripe return URLs and developer-login redirects. Must match the current local port or production HTTPS domain. |
+| `APP_URL` | Yes | Canonical app origin used for Stripe return URLs and developer-login redirects. Must match the current local port or production HTTPS domain. |
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project API URL. |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Public Supabase key used by user-scoped clients. This is safe to expose through the `NEXT_PUBLIC_` prefix when RLS is correctly configured. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Privileged server-side Supabase key. Never add a `NEXT_PUBLIC_` prefix or expose it in browser code. |
 | `DATABASE_URL` | Yes for database scripts | PostgreSQL connection string used by migrations and accounting verification. |
 | `STRIPE_SECRET_KEY` | Yes for checkout | Server-side Stripe API key. Use a test-mode key during development. |
-| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Yes for checkout | Stripe publishable key used by the client checkout flow. |
 | `STRIPE_WEBHOOK_SECRET` | Yes for webhook handling | Signing secret from Stripe or `stripe listen`; keep it private. |
 | `CRON_SECRET` | Yes for cron | Random bearer secret required by the QR-expiration endpoint. |
 | `SEED_ADMIN_PASSWORD` | Dev seed only | Password assigned to `admin@example.com` by `npm run db:seed`. |
@@ -112,9 +115,13 @@ Copy `.env.example` to `.env.local`. The example documents all supported values.
 | `PASSES_GENERATED_PER_DAY` | Optional | Maximum pass generations per student per Hawaiʻi calendar day. Default: `3`. |
 | `EATERY_DAILY_LIMIT` | Optional | Maximum accepted redemptions per eatery per Hawaiʻi calendar day. Default: `200`. |
 | `SUPABASE_PROJECT_REF` | Only for `npm run types` | Project reference used by the Supabase CLI type-generation command. |
-| `MEAL_VALUE_CENTS` | Documented value | Keep at `800`; the meal value is fixed in application code and database constraints. |
+| `RESEND_API_KEY` | Optional | Resend API key used to email school registration requests. The email is skipped when unset. |
+| `EMAIL_FROM` | Optional | Sender address for the registration email. Defaults to `Kokua Counter <noreply@kokuacounter.app>`. Only printable ASCII is kept. |
+| `CONTACT_EMAIL` | Optional | Public contact address shown on the privacy and terms pages. Neutral wording is shown when unset. |
+| `OPERATING_ORGANIZATION` | Optional | Name of the operating organization shown on the donate page. Omitted when unset. |
+| `SCHOOL_REGISTRATION_TO_EMAIL` | Optional | Recipient of school registration emails. The email is skipped when unset. |
 
-Only Supabase URL/anon key and Stripe publishable key are intended to be public. Service-role, database, Stripe secret, webhook, cron, and seed-password values must remain server-side.
+Only the Supabase URL and anon key are intended to be public (the meal value is fixed in code at `800` cents, and Stripe Checkout is a hosted redirect, so no Stripe publishable key is read). Service-role, database, Stripe secret, webhook, cron, and seed-password values must remain server-side.
 
 ## Database and Security
 
@@ -136,7 +143,7 @@ Use Stripe test-mode keys locally. To forward webhook events to the local app, r
 stripe listen --forward-to localhost:3000/api/donate/webhook
 ```
 
-Copy the printed `whsec_...` value into `STRIPE_WEBHOOK_SECRET`. If the app uses another port, update both the forwarding URL and `NEXT_PUBLIC_APP_URL`. The webhook validates the Stripe signature before changing contribution or ledger state. It handles paid/failed/expired checkout sessions and refund events.
+Copy the printed `whsec_...` value into `STRIPE_WEBHOOK_SECRET`. If the app uses another port, update both the forwarding URL and `APP_URL`. The webhook validates the Stripe signature before changing contribution or ledger state. It handles paid/failed/expired checkout sessions and refund events.
 
 The checkout currently accepts whole-dollar donations from $8 through $800. Preset amounts are $8, $24, and $80. The database is credited only after a successful signed webhook, not when checkout starts or when the browser returns to the success page.
 
@@ -184,8 +191,10 @@ npm run check:client-secrets
 
 Additional checks:
 
+- `npm test` runs the unit tests plus real-SQL tests (an in-memory Postgres via PGlite applies every migration). `npm run build && npm run test:permissions` checks every role against every page and API route using a mocked Supabase (dummy credentials only).
+- `npm run build && npm run test:browser` drives the real built site in Chrome (Playwright) as every role, with the mocked Supabase: sign-in, permissions, donation breakdown, student pass, eatery scanner, every admin page, plus WCAG A/AA accessibility scans and screenshots in `test-results/screens/`. Uses the Chrome installed on your machine; no real credentials or network services.
 - `npm run verify` executes the accounting scenarios in [supabase/tests/accounting.sql](supabase/tests/accounting.sql) using `DATABASE_URL`. Use a disposable test database only; the test script is not a production migration.
-- `npm run smoke` checks `/api/health`, unauthenticated QR generation, and cron authorization. The app must be running at `NEXT_PUBLIC_APP_URL` first.
+- `npm run smoke` checks `/api/health`, unauthenticated QR generation, and cron authorization. The app must be running at `APP_URL` first.
 - `npm run db:setup` applies schema migrations; `npm run db:seed` writes the three test accounts.
 
 Do not run `npm run build` and `npm run dev` at the same time. Both use `.next`; stop the dev server before building, then restart it afterward if needed.
@@ -199,7 +208,7 @@ One managed option is Vercel for Next.js with Supabase for PostgreSQL and Auth:
 1. Create a **separate production Supabase project**; keep development and production data apart.
 2. Apply the SQL migrations to the production project using its PostgreSQL connection string. Verify the target before running `npm run db:setup`.
 3. Push the code to a private GitHub repository and import it into Vercel. Set the production environment variables in the hosting dashboard. Do not commit `.env.local`.
-4. Set `NEXT_PUBLIC_APP_URL` to the final HTTPS URL. Add the custom domain in Vercel and configure the DNS records it provides.
+4. Set `APP_URL` to the final HTTPS URL. Add the custom domain in Vercel and configure the DNS records it provides.
 5. Configure production Stripe keys and a webhook endpoint at `https://your-domain.example/api/donate/webhook`. Use the live signing secret only in the production environment.
 6. Configure a scheduled caller for `/api/cron/expire-qrs` with `Authorization: Bearer <CRON_SECRET>`.
 7. Verify `https://your-domain.example/api/health`, then test login, a Stripe test deployment/staging checkout, and QR redemption before accepting real donations.
@@ -211,7 +220,7 @@ Never run `npm run db:seed`, `npm run dev:credit`, or `npm run verify` against p
 | Symptom | Checks |
 | --- | --- |
 | `/api/health` returns 503 | Check Supabase URL/keys, database connectivity, applied migrations, and the service-role key. |
-| App redirects to the wrong local port after checkout | Make `NEXT_PUBLIC_APP_URL` match the URL/port in use, then restart Next.js. |
+| App redirects to the wrong local port after checkout | Make `APP_URL` match the URL/port in use, then restart Next.js. |
 | Login fails for a student | Confirm the account exists, has role `student`, is active, has a password, and uses a confirmed `@hawaii.edu` address. |
 | Pass request is unavailable | Check pool balance, an existing active pass, the daily meal/pass limits, and the one-minute cooldown. |
 | Camera permission is unavailable | Tap **Enable camera**; allow the browser permission. On a phone use HTTPS. Localhost is treated as secure only on the same device. |

@@ -45,28 +45,40 @@ function asObject(value: Json | Json[]): Record<string, unknown> {
   throw new Error("unexpected_rpc_payload");
 }
 
+/** Books a verified, paid checkout: principal to the pool, operational fee to the operations ledger. */
 export async function recordCredit(params: {
   contributionId: string;
   checkoutSessionId: string;
   paymentIntentId: string;
+  /** The total Stripe actually charged; the database refuses to book it if it differs from the snapshot. */
+  amountTotalCents?: number;
 }): Promise<void> {
   const { error } = await createAdminClient().rpc("record_credit", {
     p_contribution_id: params.contributionId,
     p_checkout_session_id: params.checkoutSessionId,
     p_payment_intent_id: params.paymentIntentId,
+    p_amount_total_cents: params.amountTotalCents ?? null,
   });
   if (error) throw error;
 }
 
+/**
+ * Applies a provider refund. amountCents is the TOTAL returned to the donor; the database splits it
+ * between donation principal and operational fee. "pending" only registers it, "succeeded" books it.
+ */
 export async function recordRefund(params: {
   contributionId: string;
   stripeRefundId: string;
   amountCents: number;
+  internalRefundId?: string | null;
+  providerStatus?: "pending" | "succeeded";
 }): Promise<void> {
   const { error } = await createAdminClient().rpc("record_refund", {
     p_contribution_id: params.contributionId,
     p_stripe_refund_id: params.stripeRefundId,
     p_amount_cents: params.amountCents,
+    p_internal_refund_id: params.internalRefundId ?? null,
+    p_provider_status: params.providerStatus ?? "succeeded",
   });
   if (error) throw error;
 }

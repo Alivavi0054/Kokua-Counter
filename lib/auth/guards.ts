@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { isUserRole, type UserRole } from "@/lib/auth/roles";
+import { isUserRole, roleHome, type UserRole } from "@/lib/auth/roles";
 
 export type AppUser = {
   id: string;
@@ -58,7 +58,8 @@ export async function requireUser(): Promise<AppUser> {
 export async function requireRole(role: UserRole): Promise<AppUser> {
   const user = await requireUser();
   if (user.role !== role) {
-    redirect("/auth/login?error=unauthorized");
+    // Signed in with the wrong role: send them to their own dashboard rather than a login form.
+    redirect(roleHome(user.role));
   }
   return user;
 }

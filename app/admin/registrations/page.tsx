@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
+import { EmptyState } from "@/components/empty-state";
+import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth/guards";
-import { listSchoolRegistrations } from "@/lib/organization-store";
+import { ListSearch, Pagination } from "@/components/list-controls";
+import { PAGE_SIZE, parseListParams, totalPages } from "@/lib/pagination";
+import { searchSchoolRegistrations } from "@/lib/organization-store";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -8,30 +13,32 @@ export const metadata: Metadata = {
   description: "School partnership requests submitted through Kōkua Counter.",
 };
 
-export default async function AdminRegistrationsPage() {
+export default async function AdminRegistrationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; q?: string }>;
+}) {
   await requireRole("admin");
-  const registrations = await listSchoolRegistrations();
+  const { page, q } = parseListParams(await searchParams);
+  const { items: registrations, total } = await searchSchoolRegistrations({ page, q });
 
   return (
     <div className="space-y-8">
-      <div className="space-y-2">
-        <p className="text-sm font-medium text-primary">Admin tools</p>
-        <h1 className="font-serif text-4xl">School registrations</h1>
-      </div>
+      <PageHeader
+        eyebrow="Admin"
+        title="School registrations"
+        description="Partnership requests submitted through the school registration form."
+        actions={<Button asChild variant="outline"><a href="/api/admin/registrations/export">Export CSV</a></Button>}
+      />
 
-      <a
-        href="/api/admin/registrations/export"
-        className="inline-flex min-h-10 items-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-muted"
-      >
-        Export CSV
-      </a>
+      <ListSearch q={q} placeholder="Search by school, contact, email or city" clearHref="/admin/registrations" />
 
       {registrations.length === 0 ? (
-        <p className="text-muted-foreground">No school registration requests yet.</p>
+        <EmptyState title={q ? "No registrations match your search" : "No school registration requests yet"}>{q ? undefined : "New submissions from the public form will appear here."}</EmptyState>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {registrations.map((registration) => (
-            <article key={registration.id} className="rounded-lg border bg-card p-4 shadow-sm">
+            <article key={registration.id} className="rounded-xl border bg-card p-5 shadow-soft">
               <div className="mb-2 flex items-center justify-between gap-4">
                 <h3 className="font-serif text-xl">{registration.schoolName}</h3>
                 <span className="text-xs text-muted-foreground">
@@ -55,6 +62,8 @@ export default async function AdminRegistrationsPage() {
           ))}
         </div>
       )}
+
+      <Pagination basePath="/admin/registrations" page={page} pages={totalPages(total, PAGE_SIZE)} total={total} params={{ q }} />
     </div>
   );
 }

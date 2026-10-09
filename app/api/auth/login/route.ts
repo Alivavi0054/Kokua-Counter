@@ -3,9 +3,9 @@ import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 import { createClient } from "@/lib/supabase/server";
-import { isHawaiiEduEmail } from "@/lib/auth/roles";
-import { rateLimit } from "@/lib/rate-limit";
-import { parseJsonBody, verifyOriginMatches } from "@/lib/security";
+import { isHawaiiEduEmail, isUserRole, roleHome } from "@/lib/auth/roles";
+import { rateLimitShared } from "@/lib/rate-limit-shared";
+import { getClientIp, isAllowedRedirect, parseJsonBody, verifyOriginMatches } from "@/lib/security";
 import { getAppUrl } from "@/lib/env";
 
 const bodySchema = z.object({
@@ -14,21 +14,14 @@ const bodySchema = z.object({
   next: z.string().optional(),
 });
 
-function safeNext(path: string | undefined) {
-  if (!path || !path.startsWith("/") || path.startsWith("//")) return null;
-  return path;
-}
-
 export async function POST(request: Request) {
   if (!verifyOriginMatches(request, getAppUrl("login form requests"))) {
     return NextResponse.json({ error: "Invalid request." }, { status: 403 });
   }
 
-  const clientIp = (request.headers.get("x-forwarded-for") ?? request.headers.get("x-real-ip") ?? "local")
-    .split(",")[0]
-    .trim() || "local";
+  const clientIp = getClientIp(request);
 
-  const limited = rateLimit(`auth-login:${clientIp}`, 8, 60_000);
+  const limited = await rateLimitShared(`auth-login:${clientIp}`, 8, 60_000);
   if (!limited.ok) {
     return NextResponse.json({ error: "Too many sign-in attempts. Please wait a minute and try again." }, { status: 429 });
   }
@@ -44,7 +37,7 @@ export async function POST(request: Request) {
   }
 
   const supabase = await createClient();
-  const next = safeNext(parsedBody.data.next);
+  const next = parsedBody.data.next ? isAllowedRedirect(parsedBody.data.next) : null;
 
   const { error } = await supabase.auth.signInWithPassword({
     email,
@@ -58,26 +51,31 @@ export async function POST(request: Request) {
     data: { user },
   } = await supabase.auth.getUser();
   const { data: profile } = user
-    ? await supabase.from("users").select("role").eq("id", user.id).maybeSingle()
+    ? await supabase.from("users").select("role, is_active").eq("id", user.id).maybeSingle()
     : { data: null };
 
-  if (profile?.role === "student" && !isHawaiiEduEmail(email)) {
+  // A valid password is not enough: the account needs an active profile with a known role.
+  if (!user || !profile || !isUserRole(profile.role)) {
     await supabase.auth.signOut();
-    return NextResponse.json(
-      { error: "Use a University of Hawaiʻi email ending in @hawaii.edu." },
-      { status: 403 },
-    );
+    return NextResponse.json({ error: "This account is not set up yet. Contact the program administrator." }, { status: 403 });
+  }
+  if (!profile.is_active) {
+    await supabase.auth.signOut();
+    return NextResponse.json({ error: "This account has been deactivated. Contact the program administrator." }, { status: 403 });
+  }
+  if (profile.role === "student") {
+    if (!isHawaiiEduEmail(email)) {
+      await supabase.auth.signOut();
+      return NextResponse.json(
+        { error: "Use a University of Hawaiʻi email ending in @hawaii.edu." },
+        { status: 403 },
+      );
+    }
+    if (!user.email_confirmed_at) {
+      await supabase.auth.signOut();
+      return NextResponse.json({ error: "Confirm your email address first, then sign in." }, { status: 403 });
+    }
   }
 
-  const redirect =
-    next ??
-    (profile?.role === "admin"
-      ? "/admin"
-      : profile?.role === "eatery"
-        ? "/eatery"
-        : profile?.role === "student"
-          ? "/student"
-          : "/");
-
-  return NextResponse.json({ redirect });
+  return NextResponse.json({ redirect: next ?? roleHome(profile.role) });
 }

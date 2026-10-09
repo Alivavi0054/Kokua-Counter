@@ -2,10 +2,13 @@
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
+type Notice = { tone: "info" | "destructive"; text: string };
 
 export function LoginForm() {
   const searchParams = useSearchParams();
@@ -13,11 +16,12 @@ export function LoginForm() {
   const errorParam = searchParams.get("error");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [message, setMessage] = useState<string | null>(
+  const [showPassword, setShowPassword] = useState(false);
+  const [notice, setNotice] = useState<Notice | null>(
     errorParam === "unauthorized"
-      ? "That account cannot open this page."
+      ? { tone: "destructive", text: "That account cannot open this page." }
       : errorParam === "domain"
-        ? "Use a University of Hawaiʻi email ending in @hawaii.edu."
+        ? { tone: "destructive", text: "Use a University of Hawaiʻi email ending in @hawaii.edu." }
         : null,
   );
   const [pending, setPending] = useState(false);
@@ -25,11 +29,11 @@ export function LoginForm() {
   async function signInWithPassword(event: React.FormEvent) {
     event.preventDefault();
     setPending(true);
-    setMessage(null);
-    
-    if (!email || !password) {
+    setNotice(null);
+
+    if (!email.trim() || !password) {
       setPending(false);
-      setMessage("Email and password are required.");
+      setNotice({ tone: "destructive", text: "Email and password are required." });
       return;
     }
 
@@ -39,81 +43,75 @@ export function LoginForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, next }),
       });
-      
-      const payload = (await response.json()) as {
-        error?: string;
-        redirect?: string;
-      };
-      
+      const payload = (await response.json()) as { error?: string; redirect?: string };
+
       if (!response.ok) {
         setPending(false);
-        setMessage(payload.error ?? "Could not sign in. Please try again.");
-        console.error("[Login Error]", response.status, payload.error);
+        setNotice({ tone: "destructive", text: payload.error ?? "Could not sign in. Please try again." });
         return;
       }
-      
-      // Successful login - redirect
-      const redirectUrl = payload.redirect ?? "/";
-      window.location.href = redirectUrl;
-    } catch (error) {
+
+      window.location.href = payload.redirect ?? "/";
+    } catch {
       setPending(false);
-      setMessage("Network error. Check your internet connection and try again.");
-      console.error("[Login Network Error]", error);
+      setNotice({ tone: "destructive", text: "Network error. Check your internet connection and try again." });
     }
   }
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Account Login</CardTitle>
-          <CardDescription>
-            Enter your email and password to sign in as a student, eatery staff, or administrator.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={signInWithPassword} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="login-email">Email Address</Label>
-              <Input
-                id="login-email"
-                type="email"
-                inputMode="email"
-                placeholder="your.email@hawaii.edu"
-                required
-                autoComplete="email"
-                disabled={pending}
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className="text-base"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="login-password">Password</Label>
+    <Card className="shadow-lift">
+      <CardHeader>
+        <CardTitle className="text-2xl">Sign in to your account</CardTitle>
+        <CardDescription>Students, eatery staff, and administrators all sign in here.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={signInWithPassword} className="space-y-5" noValidate>
+          {notice ? <Alert variant={notice.tone}>{notice.text}</Alert> : null}
+          <div className="space-y-2">
+            <Label htmlFor="login-email">Email address</Label>
+            <Input
+              id="login-email"
+              type="email"
+              inputMode="email"
+              placeholder="you@hawaii.edu"
+              required
+              autoComplete="email"
+              autoCapitalize="none"
+              spellCheck={false}
+              disabled={pending}
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="login-password">Password</Label>
+            <div className="relative">
               <Input
                 id="login-password"
-                type="password"
+                type={showPassword ? "text" : "password"}
                 placeholder="Enter your password"
                 required
                 autoComplete="current-password"
                 disabled={pending}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                className="text-base"
+                className="pr-16"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((value) => !value)}
+                aria-pressed={showPassword}
+                className="absolute inset-y-0 right-0 px-3.5 text-xs font-semibold text-primary hover:underline"
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
             </div>
-            <Button type="submit" className="w-full h-12" disabled={pending}>
-              {pending ? "Signing in…" : "Sign In"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-
-      {message ? (
-        <p className={`text-sm font-medium ${message.includes("Could not") || message.includes("Network") || message.includes("required") ? "text-red-600" : "text-blue-600"}`} role="status">
-          {message}
-        </p>
-      ) : null}
-    </div>
+          </div>
+          <Button type="submit" size="lg" className="w-full" disabled={pending}>
+            {pending ? "Signing in…" : "Sign in"}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

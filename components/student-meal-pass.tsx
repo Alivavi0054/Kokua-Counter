@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { QR_TTL_MINUTES } from "@/lib/public-constants";
@@ -127,6 +129,9 @@ export function StudentMealPass() {
         clearPersistedPass();
         return;
       }
+      // Restoring from sessionStorage must run after mount: reading it during render would
+      // differ between server and client and break hydration. This runs once ([] deps).
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setToken(parsed.token);
       setQrId(parsed.qrId);
       setExpiresAt(parsed.expiresAt);
@@ -196,16 +201,23 @@ export function StudentMealPass() {
     : "";
 
   if (loading) {
-    return <p className="py-12 text-center text-muted-foreground" role="status">Preparing your meal pass…</p>;
+    return (
+      <Card>
+        <CardContent className="flex flex-col items-center gap-4 py-14 text-center" role="status">
+          <span className="size-9 animate-spin rounded-full border-4 border-secondary border-t-primary" aria-hidden="true" />
+          <p className="text-muted-foreground">Preparing your meal pass…</p>
+        </CardContent>
+      </Card>
+    );
   }
 
   if (!requested && !error) {
     return (
       <Card>
-        <CardHeader><CardTitle>Ready for a meal?</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-muted-foreground">Create a single-use meal pass to show at a participating eatery.</p>
-          <Button onClick={() => void createPass()}>Get meal pass</Button>
+        <CardHeader><CardTitle>Get your meal pass</CardTitle></CardHeader>
+        <CardContent className="space-y-5">
+          <p className="text-muted-foreground">Create a single-use QR pass to show at a participating eatery. It stays valid for a short time, so request it when you are ready to order.</p>
+          <Button size="lg" className="w-full sm:w-auto" onClick={() => void createPass()}>Get meal pass</Button>
         </CardContent>
       </Card>
     );
@@ -214,12 +226,17 @@ export function StudentMealPass() {
   if (status === "redeemed") {
     return (
       <Card>
-        <CardHeader><CardTitle>Meal pass redeemed</CardTitle></CardHeader>
-        <CardContent className="space-y-3">
+        <CardHeader>
+          <Badge variant="success" className="w-fit">Redeemed</Badge>
+          <CardTitle>Enjoy your meal!</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
           <p>Your meal was accepted at {eateryName ?? "a participating eatery"}.</p>
           {redeemedAt ? <p className="text-sm text-muted-foreground">{new Date(redeemedAt).toLocaleString()}</p> : null}
-          <Button onClick={() => void replacePass()}>Get a new pass</Button>
-          <Button variant="outline" asChild><Link href="/student/history">View history</Link></Button>
+          <div className="flex flex-wrap gap-3">
+            <Button onClick={() => void replacePass()}>Get a new pass</Button>
+            <Button variant="outline" asChild><Link href="/student/history">View history</Link></Button>
+          </div>
         </CardContent>
       </Card>
     );
@@ -230,7 +247,7 @@ export function StudentMealPass() {
       <Card>
         <CardHeader><CardTitle>Meal pass unavailable</CardTitle></CardHeader>
         <CardContent className="space-y-4">
-          <p role="alert">{error}</p>
+          <Alert variant="destructive">{error}</Alert>
           <Button variant="outline" asChild><a href="/student">Back to student home</a></Button>
         </CardContent>
       </Card>
@@ -240,7 +257,10 @@ export function StudentMealPass() {
   if (status !== "active" || !token || !expiresAt) {
     return (
       <Card>
-        <CardHeader><CardTitle>Meal pass ended</CardTitle></CardHeader>
+        <CardHeader>
+          <Badge variant="outline" className="w-fit">Ended</Badge>
+          <CardTitle>Meal pass ended</CardTitle>
+        </CardHeader>
         <CardContent className="space-y-4">
           <p>This pass is no longer active. You can request another one when eligible.</p>
           <Button onClick={() => void replacePass()}>Get a new pass</Button>
@@ -256,7 +276,7 @@ export function StudentMealPass() {
         <p className="text-sm text-muted-foreground">One meal · single use</p>
       </CardHeader>
       <CardContent className="space-y-5 text-center">
-        <div className="mx-auto w-full max-w-[304px] rounded-md bg-white p-3">
+        <div className="mx-auto w-full max-w-[304px] rounded-xl border bg-white p-3 shadow-soft">
           <QRCodeSVG title="Single-use meal pass QR code" value={token} size={280} level="Q" className="mx-auto h-auto w-full max-w-[280px]" />
         </div>
         <div

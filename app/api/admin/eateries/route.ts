@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiRole } from "@/lib/auth/guards";
+import { rollbackAuthUser } from "@/lib/admin-accounts";
+import { describeError } from "@/lib/errors";
 import { rateLimit } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { recordAdminAction } from "@/lib/audit";
 
 const createEaterySchema = z.object({
   name: z.string().trim().min(2).max(200),
@@ -56,10 +59,8 @@ export async function POST(request: Request) {
   });
 
   if (createError || !created.user) {
-    return NextResponse.json(
-      { error: createError?.message ?? "Could not create the eatery owner account." },
-      { status: 409 },
-    );
+    console.error("admin/eateries: createUser failed", describeError(createError));
+    return NextResponse.json({ error: "Could not create the eatery owner account." }, { status: 409 });
   }
 
   const { error: profileError } = await admin.from("users").upsert(
@@ -74,7 +75,9 @@ export async function POST(request: Request) {
   );
 
   if (profileError) {
-    return NextResponse.json({ error: "Owner account was created but the profile could not be saved." }, { status: 500 });
+    console.error("admin/eateries: owner profile upsert failed", describeError(profileError));
+    await rollbackAuthUser(admin, created.user.id, "admin/eateries");
+    return NextResponse.json({ error: "Could not create the eatery." }, { status: 500 });
   }
 
   const baseSlug = slugify(name);
@@ -91,15 +94,20 @@ export async function POST(request: Request) {
     });
 
     if (!eateryError) {
+      await recordAdminAction({ actorId: auth.user.id, action: "eatery.created", targetType: "eatery", targetId: slug });
       return NextResponse.json({ message: "Eatery created successfully.", slug });
     }
 
     if (eateryError.code !== "23505") {
+      console.error("admin/eateries: eatery insert failed", describeError(eateryError));
+      await rollbackAuthUser(admin, created.user.id, "admin/eateries");
       return NextResponse.json({ error: "Could not create the eatery." }, { status: 500 });
     }
 
     slug = `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`;
   }
 
+  console.error("admin/eateries: could not find a unique slug");
+  await rollbackAuthUser(admin, created.user.id, "admin/eateries");
   return NextResponse.json({ error: "Could not create a unique eatery slug." }, { status: 500 });
 }

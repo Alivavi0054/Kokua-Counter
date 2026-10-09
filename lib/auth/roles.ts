@@ -20,3 +20,23 @@ export function normalizeHawaiiEduEmail(email: string): string {
   const mailbox = normalized.slice(0, at).split("+", 1)[0] ?? "";
   return `${mailbox}@hawaii.edu`;
 }
+
+/** Landing page for each role; unknown or missing roles go to the public home page. */
+export function roleHome(role: string | null | undefined): string {
+  switch (role) {
+    case "student":
+      return "/student";
+    case "eatery":
+      return "/eatery";
+    case "admin":
+      return "/admin";
+    default:
+      return "/";
+  }
+}
+
+export const ROLE_LABELS: Record<UserRole, string> = {
+  student: "Student",
+  eatery: "Eatery",
+  admin: "Administrator",
+};

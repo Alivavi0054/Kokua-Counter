@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/auth/guards";
 import { toCsv } from "@/lib/csv";
 import { listSchoolRegistrations } from "@/lib/organization-store";
+import { recordAdminAction } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
@@ -25,6 +26,7 @@ export async function GET() {
     { key: "createdAt", header: "Submitted at" },
   ]);
 
+  await recordAdminAction({ actorId: auth.user.id, action: "export.registrations", details: { rows: registrations.length } });
   return new NextResponse(csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",

@@ -1,6 +1,13 @@
+// Spreadsheet apps evaluate cells starting with these characters as formulas.
+const FORMULA_PREFIX = /^[=+\-@\t\r]/;
+
 function escapeCsvCell(value: unknown): string {
-  const text = value === null || value === undefined ? "" : String(value);
-  if (/[",\n]/.test(text)) {
+  let text = value === null || value === undefined ? "" : String(value);
+  // Only strings can carry attacker-controlled formulas; real numbers (e.g. -500) stay as-is.
+  if (typeof value === "string" && FORMULA_PREFIX.test(text)) {
+    text = `'${text}`;
+  }
+  if (/[",\r\n]/.test(text)) {
     return `"${text.replace(/"/g, '""')}"`;
   }
   return text;

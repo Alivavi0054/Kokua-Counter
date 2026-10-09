@@ -18,9 +18,9 @@ export default async function HomePage() {
     .order("name");
 
   return (
-    <div className="relative left-1/2 -ml-[50vw] -mt-8 -mb-8 w-screen overflow-hidden bg-[#fbfaf6] text-[#1e2922]">
-      <section className="border-b border-[#e8e5dc] px-4 pb-16 pt-12 sm:px-6 sm:pb-20 sm:pt-16 lg:px-8">
-        <div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-12 lg:gap-10">
+    <div className="relative left-1/2 -ml-[50vw] -mt-10 -mb-10 w-screen overflow-hidden bg-[#fbfaf6] text-[#1e2922]">
+      <section className="border-b border-[#e8e5dc] px-4 pb-20 pt-12 sm:px-6 sm:pb-24 sm:pt-16">
+        <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-12 lg:gap-10">
           <div className="space-y-6 lg:col-span-7">
             <p className="inline-flex items-center gap-2 rounded-full bg-[#e7efe9] px-3.5 py-1.5 text-xs font-semibold text-[#24503b]">
               Shared meal credits for University of Hawaiʻi students
@@ -34,7 +34,7 @@ export default async function HomePage() {
             <div className="flex flex-col gap-3 pt-1 sm:flex-row">
               <Link
                 href="/donate"
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[#c8583d] px-6 text-sm font-semibold text-white transition-colors hover:bg-[#a94530]"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[#a94530] px-6 text-sm font-semibold text-white transition-colors hover:bg-[#8f3a26]"
               >
                 Contribute to the meal pool <span aria-hidden="true">→</span>
               </Link>
@@ -48,7 +48,7 @@ export default async function HomePage() {
                 href="/auth/login"
                 className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[#c9d1c9] bg-white px-6 text-sm font-semibold text-[#18392b] transition-colors hover:bg-[#f0f3ef]"
               >
-                Student Login
+                Sign in
               </Link>
             </div>
             <div className="grid max-w-xl grid-cols-3 gap-4 border-t border-[#deded5] pt-6">
@@ -61,7 +61,7 @@ export default async function HomePage() {
                 <p className="mt-1 text-xs leading-snug text-stone-600">private meal pass</p>
               </div>
               <div>
-                <p className="font-serif text-2xl font-semibold text-[#c8583d]">Local</p>
+                <p className="font-serif text-2xl font-semibold text-[#a94530]">Local</p>
                 <p className="mt-1 text-xs leading-snug text-stone-600">participating eateries</p>
               </div>
             </div>
@@ -86,10 +86,10 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="bg-[#f0eee6] px-4 py-14 sm:px-6 sm:py-16 lg:px-8">
-        <div className="mx-auto grid max-w-7xl gap-8 md:grid-cols-3">
-          <article className="border-t-2 border-[#c8583d] pt-5">
-            <p className="text-xs font-semibold uppercase text-[#a94530]">01 · Give</p>
+      <section className="bg-[#f0eee6] px-4 py-14 sm:px-6 sm:py-16 ">
+        <div className="mx-auto grid max-w-6xl gap-8 md:grid-cols-3">
+          <article className="border-t-2 border-[#a94530] pt-5">
+            <p className="text-xs font-semibold uppercase text-[#8f3a26]">01 · Give</p>
             <h2 className="mt-3 font-serif text-2xl font-semibold text-[#18392b]">Add a meal credit</h2>
             <p className="mt-2 text-sm leading-relaxed text-stone-700">Choose an amount and complete checkout. Your contribution joins the shared meal pool.</p>
           </article>
@@ -106,8 +106,8 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section id="eateries-section" className="scroll-mt-24 px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
-        <div className="mx-auto max-w-7xl">
+      <section id="eateries-section" className="scroll-mt-24 px-4 py-16 sm:px-6 sm:py-20 ">
+        <div className="mx-auto max-w-6xl">
           <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase text-[#2a6f78]">Community partners</p>
@@ -142,8 +142,8 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="bg-[#18392b] px-4 py-14 text-white sm:px-6 sm:py-16 lg:px-8">
-        <div className="mx-auto grid max-w-7xl items-center gap-8 md:grid-cols-2">
+      <section className="bg-[#18392b] px-4 py-14 text-white sm:px-6 sm:py-16 ">
+        <div className="mx-auto grid max-w-6xl items-center gap-8 md:grid-cols-2">
           <div>
             <p className="text-xs font-semibold uppercase text-[#a3e0c8]">A community effort</p>
             <h2 className="mt-3 font-serif text-3xl font-semibold leading-tight sm:text-4xl">Food is part of feeling at home.</h2>
@@ -162,10 +162,10 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+      <section className="px-4 py-16 sm:px-6 sm:py-20 ">
         <div className="mx-auto grid max-w-5xl gap-10 md:grid-cols-[0.8fr_1.2fr]">
           <div>
-            <p className="text-xs font-semibold uppercase text-[#c8583d]">Good to know</p>
+            <p className="text-xs font-semibold uppercase text-[#a94530]">Good to know</p>
             <h2 className="mt-2 font-serif text-3xl font-semibold text-[#18392b]">Questions, answered.</h2>
           </div>
           <div className="divide-y divide-[#deded5] border-y border-[#deded5]">
@@ -185,11 +185,11 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="bg-[#e7efe9] px-4 py-12 text-center sm:px-6 lg:px-8">
+      <section className="bg-[#e7efe9] px-4 py-12 text-center sm:px-6 ">
         <div className="mx-auto max-w-3xl space-y-4">
           <h2 className="font-serif text-3xl font-semibold text-[#18392b]">Make room for one more at the table.</h2>
           <p className="text-sm leading-relaxed text-stone-700">A contribution helps keep meal credits available to University of Hawaiʻi students at participating eateries.</p>
-          <Link href="/donate" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#c8583d] px-6 text-sm font-semibold text-white transition-colors hover:bg-[#a94530]">Donate to the shared pool</Link>
+          <Link href="/donate" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#a94530] px-6 text-sm font-semibold text-white transition-colors hover:bg-[#8f3a26]">Donate to the shared pool</Link>
         </div>
       </section>
     </div>

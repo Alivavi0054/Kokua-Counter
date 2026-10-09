@@ -36,7 +36,6 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules",
-    "k-kua-counter-oct-6-2026-6-56-01-pm"
+    "node_modules"
   ]
 }

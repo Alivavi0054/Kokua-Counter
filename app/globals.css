@@ -1,27 +1,76 @@
 @import "tailwindcss";
 
+/*
+ * Tailwind v4 reads its theme from CSS, not tailwind.config.ts. Every semantic
+ * colour below is exposed as a utility (bg-primary, text-muted-foreground, ...).
+ */
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-success: hsl(var(--success));
+  --color-success-foreground: hsl(var(--success-foreground));
+  --color-warning: hsl(var(--warning));
+  --color-warning-foreground: hsl(var(--warning-foreground));
+  --color-info: hsl(var(--info));
+  --color-info-foreground: hsl(var(--info-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-fraunces), ui-serif, Georgia, serif;
+
+  --shadow-soft: 0 1px 2px hsl(150 30% 12% / 0.05), 0 4px 14px hsl(150 30% 12% / 0.06);
+  --shadow-lift: 0 2px 4px hsl(150 30% 12% / 0.06), 0 12px 32px hsl(150 30% 12% / 0.1);
+}
+
 @layer base {
   :root {
-    --background: 36 43% 96%;
-    --foreground: 18 32% 12%;
-    --card: 36 40% 98%;
-    --card-foreground: 18 32% 12%;
-    --popover: 36 40% 98%;
-    --popover-foreground: 18 32% 12%;
-    --primary: 178 59% 26%;
-    --primary-foreground: 36 43% 96%;
-    --secondary: 32 32% 88%;
-    --secondary-foreground: 18 32% 16%;
-    --muted: 33 28% 90%;
-    --muted-foreground: 18 12% 38%;
-    --accent: 18 65% 38%;
-    --accent-foreground: 36 43% 97%;
-    --destructive: 0 72% 42%;
+    --background: 48 38% 97%;
+    --foreground: 150 18% 13%;
+    --card: 0 0% 100%;
+    --card-foreground: 150 18% 13%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 150 18% 13%;
+    --primary: 153 40% 17%;
+    --primary-foreground: 48 38% 97%;
+    --secondary: 140 20% 91%;
+    --secondary-foreground: 153 40% 17%;
+    --muted: 48 24% 93%;
+    --muted-foreground: 30 5% 34%;
+    --accent: 12 60% 42%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 68% 40%;
     --destructive-foreground: 0 0% 100%;
-    --border: 32 22% 82%;
-    --input: 32 22% 82%;
-    --ring: 178 59% 26%;
-    --radius: 0.5rem;
+    --success: 150 55% 24%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 26%;
+    --warning-foreground: 0 0% 100%;
+    --info: 186 55% 28%;
+    --info-foreground: 0 0% 100%;
+    --border: 48 17% 85%;
+    --input: 45 14% 78%;
+    --ring: 186 55% 32%;
+    --radius: 0.625rem;
     --coral: hsl(var(--accent));
     --sand: hsl(var(--secondary));
   }
@@ -30,21 +79,36 @@
     border-color: hsl(var(--border));
   }
 
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
     overflow-x: clip;
+  }
+
+  h1, h2, h3 {
+    text-wrap: balance;
   }
 
   main {
     animation: page-enter 220ms ease-out both;
   }
 
+  ::selection {
+    background-color: hsl(var(--secondary));
+    color: hsl(var(--primary));
+  }
+
   :focus-visible {
     outline: 3px solid hsl(var(--ring));
     outline-offset: 3px;
+    border-radius: 4px;
   }
 
   @keyframes page-enter {

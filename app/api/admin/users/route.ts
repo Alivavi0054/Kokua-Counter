@@ -2,8 +2,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiRole } from "@/lib/auth/guards";
 import { USER_ROLES } from "@/lib/auth/roles";
+import { rollbackAuthUser } from "@/lib/admin-accounts";
+import { describeError } from "@/lib/errors";
 import { rateLimit } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { recordAdminAction } from "@/lib/audit";
 
 const createUserSchema = z.object({
   email: z.string().trim().email().max(254),
@@ -46,10 +49,8 @@ export async function POST(request: Request) {
   });
 
   if (createError || !created.user) {
-    return NextResponse.json(
-      { error: createError?.message ?? "Could not create this account." },
-      { status: 409 },
-    );
+    console.error("admin/users: createUser failed", describeError(createError));
+    return NextResponse.json({ error: "Could not create this account." }, { status: 409 });
   }
 
   const { error: profileError } = await admin.from("users").upsert(
@@ -65,8 +66,11 @@ export async function POST(request: Request) {
   );
 
   if (profileError) {
-    return NextResponse.json({ error: "Account was created but the profile could not be saved." }, { status: 500 });
+    console.error("admin/users: profile upsert failed", describeError(profileError));
+    await rollbackAuthUser(admin, created.user.id, "admin/users");
+    return NextResponse.json({ error: "Could not create this account." }, { status: 500 });
   }
 
+  await recordAdminAction({ actorId: auth.user.id, action: "user.created", targetType: "user", targetId: created.user.id, details: { role } });
   return NextResponse.json({ message: "User created successfully.", id: created.user.id });
 }

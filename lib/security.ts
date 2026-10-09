@@ -1,4 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
+import { isIP } from "node:net";
 import { z } from "zod";
 
 export const MAX_JSON_BODY_BYTES = 1_000_000;
@@ -7,7 +8,14 @@ export function isAllowedRedirect(value: string | null | undefined): string | nu
   if (!value) return "/";
 
   const candidate = value.trim();
-  if (!candidate || candidate.startsWith("//") || candidate.startsWith("\\")) {
+  if (!candidate || !candidate.startsWith("/") || candidate.startsWith("//")) {
+    return null;
+  }
+
+  // Browsers treat "\" like "/" and silently drop tabs/newlines inside URLs, so
+  // "/\evil.com" or "/\t/evil.com" would become "//evil.com". Reject them outright,
+  // including percent-encoded forms.
+  if (/[\\\u0000-\u001f\u007f]/.test(candidate) || /%5c|%09|%0a|%0d|%00/i.test(candidate)) {
     return null;
   }
 
@@ -15,7 +23,13 @@ export function isAllowedRedirect(value: string | null | undefined): string | nu
     return null;
   }
 
-  if (!candidate.startsWith("/")) {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(candidate);
+  } catch {
+    return null;
+  }
+  if (decoded.startsWith("//") || decoded.includes("\\") || decoded.includes("..")) {
     return null;
   }
 
@@ -25,6 +39,32 @@ export function isAllowedRedirect(value: string | null | undefined): string | nu
   }
 
   return normalized || "/";
+}
+
+function validIp(value: string | null | undefined): string | null {
+  const candidate = value?.trim();
+  return candidate && isIP(candidate) ? candidate : null;
+}
+
+/**
+ * Best-effort client IP for rate limiting. Prefers headers the hosting platform sets
+ * itself (x-vercel-forwarded-for, x-real-ip). If only x-forwarded-for is present we use its
+ * LAST entry (appended by the nearest proxy); the first entry is client-controlled and
+ * must not be trusted. Falls back to "local" when no valid IP is available.
+ */
+export function getClientIp(request: Request): string {
+  const headers = request.headers;
+  const platformIp = validIp(headers.get("x-vercel-forwarded-for")?.split(",")[0]) ?? validIp(headers.get("x-real-ip"));
+  if (platformIp) return platformIp;
+
+  const forwarded = headers.get("x-forwarded-for");
+  if (forwarded) {
+    const parts = forwarded.split(",");
+    const nearestProxyIp = validIp(parts[parts.length - 1]);
+    if (nearestProxyIp) return nearestProxyIp;
+  }
+
+  return "local";
 }
 
 export function verifyOriginMatches(request: Request, appUrl: string): boolean {

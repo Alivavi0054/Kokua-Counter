@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
 export function ConnectPayoutsButton({ isConnected }: { isConnected: boolean }) {
@@ -10,16 +11,22 @@ export function ConnectPayoutsButton({ isConnected }: { isConnected: boolean }) 
   async function onClick() {
     setPending(true);
     setError(null);
-    const response = await fetch("/api/eatery/connect/onboard", { method: "POST" });
+    let response: Response;
+    try {
+      response = await fetch("/api/eatery/connect/onboard", { method: "POST" });
+    } catch {
+      setPending(false);
+      setError("Network error. Check your connection and try again.");
+      return;
+    }
     const payload = (await response.json().catch(() => ({}))) as { url?: string; error?: string };
     if (!response.ok || !payload.url) {
       setPending(false);
-      const errorMsg = payload.error ?? "Could not start payout setup.";
-      if (response.status === 403) {
-        setError(`${errorMsg} Run: npm run setup:connect`);
-      } else {
-        setError(errorMsg);
-      }
+      setError(
+        response.status === 403
+          ? "Payout setup isn't available yet. Please contact the program team."
+          : payload.error ?? "Could not start payout setup. Please try again.",
+      );
       return;
     }
     window.location.href = payload.url;
@@ -30,7 +37,7 @@ export function ConnectPayoutsButton({ isConnected }: { isConnected: boolean }) 
       <Button onClick={onClick} disabled={pending} variant={isConnected ? "outline" : "default"}>
         {pending ? "Opening…" : isConnected ? "Update payout details" : "Set up payouts"}
       </Button>
-      {error ? <p className="text-sm text-red-700">{error}</p> : null}
+      {error ? <Alert variant="destructive">{error}</Alert> : null}
     </div>
   );
 }

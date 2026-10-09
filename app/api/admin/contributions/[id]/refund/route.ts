@@ -1,19 +1,36 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiRole } from "@/lib/auth/guards";
+import { describeError } from "@/lib/errors";
+import { databaseRefundDeps } from "@/lib/finance";
 import { rateLimit } from "@/lib/rate-limit";
+import { startRefund } from "@/lib/refunds";
 import { getStripe } from "@/lib/stripe/client";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { recordAdminAction } from "@/lib/audit";
 
 const uuidSchema = z.string().uuid();
+const requestKeySchema = z.string().regex(/^[A-Za-z0-9_-]{8,100}$/);
 const bodySchema = z.object({
+  /** Total amount to return to the donor. Omit for everything still refundable. */
   amount_cents: z.number().int().positive().optional(),
+  reason: z.string().trim().max(200).optional(),
 }).strict();
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const rejection: Record<string, { status: number; message: string }> = {
+  not_found: { status: 404, message: "Contribution not found." },
+  not_refundable: { status: 409, message: "This contribution has no completed payment to refund." },
+  disputed: { status: 409, message: "This payment has an open dispute and cannot be refunded." },
+  nothing_to_refund: { status: 409, message: "This contribution has already been fully refunded or has refunds in progress." },
+  exceeds_remaining: { status: 400, message: "Refund amount exceeds the remaining refundable amount." },
+  invalid_amount: { status: 400, message: "Invalid refund amount." },
+  idempotency_key_reused: { status: 400, message: "That request key was already used for a different refund." },
+};
+
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  // Only administrators may refund, and only server-side: donors cannot refund their own payments.
   const auth = await requireApiRole("admin");
   if (!auth.ok) return auth.response;
 
@@ -41,44 +58,64 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
 
-  const admin = createAdminClient();
-  const { data: contribution, error } = await admin
-    .from("contributions")
-    .select("id, amount_cents, refunded_amount_cents, status, stripe_payment_intent_id")
-    .eq("id", id)
-    .maybeSingle();
-
-  if (error || !contribution) {
-    return NextResponse.json({ error: "Contribution not found." }, { status: 404 });
-  }
-  if (!contribution.stripe_payment_intent_id) {
-    return NextResponse.json({ error: "This contribution has no completed payment to refund." }, { status: 409 });
-  }
-  if (contribution.status !== "completed" && contribution.status !== "refunded") {
-    return NextResponse.json({ error: "Only completed contributions can be refunded." }, { status: 409 });
+  const rawKey = request.headers.get("idempotency-key");
+  if (rawKey && !requestKeySchema.safeParse(rawKey).success) {
+    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
 
-  const remaining = contribution.amount_cents - contribution.refunded_amount_cents;
-  if (remaining <= 0) {
-    return NextResponse.json({ error: "This contribution has already been fully refunded." }, { status: 409 });
-  }
-
-  const amountCents = parsed.data.amount_cents ?? remaining;
-  if (amountCents > remaining) {
-    return NextResponse.json({ error: "Refund amount exceeds the remaining refundable amount." }, { status: 400 });
-  }
-
+  let result;
   try {
-    await getStripe().refunds.create({
-      payment_intent: contribution.stripe_payment_intent_id,
-      amount: amountCents,
-      metadata: { contribution_id: contribution.id },
-    });
-  } catch {
-    return NextResponse.json({ error: "Could not start the refund with Stripe." }, { status: 502 });
+    result = await startRefund(
+      {
+        contributionId: id,
+        amountCents: parsed.data.amount_cents ?? null,
+        reason: parsed.data.reason || null,
+        requestedBy: auth.user.id,
+        idempotencyRef: rawKey,
+      },
+      {
+        ...databaseRefundDeps(),
+        stripe: getStripe(),
+        log: (message, detail) => console.error(`admin/refund: ${message}`, detail),
+      },
+    );
+  } catch (error) {
+    console.error("admin/refund: unexpected failure", describeError(error));
+    return NextResponse.json({ error: "Could not start the refund." }, { status: 500 });
   }
 
-  return NextResponse.json({
-    message: "Refund started. The ledger will update once Stripe confirms it.",
-  });
+  switch (result.status) {
+    case "rejected": {
+      const known = rejection[result.errorCode] ?? { status: 409, message: "Could not start the refund." };
+      return NextResponse.json({ error: known.message }, { status: known.status });
+    }
+    case "failed":
+      return NextResponse.json({ error: "Stripe could not start the refund. Nothing was refunded." }, { status: 502 });
+    case "needs_reconciliation":
+      return NextResponse.json(
+        {
+          error: "The refund request could not be confirmed with Stripe. It is held for review: use Reconcile on the Finance page before trying again.",
+          refund_id: result.refundId,
+        },
+        { status: 202 },
+      );
+    case "started":
+      await recordAdminAction({
+        actorId: auth.user.id,
+        action: "refund.started",
+        targetType: "contribution",
+        targetId: id,
+        details: { refund_id: result.refundId, total_cents: result.amountCents, donation_cents: result.principalCents, fee_cents: result.feeCents, replay: result.replay },
+      });
+      return NextResponse.json({
+        message: "Refund started. The ledger will update once Stripe confirms it.",
+        refund_id: result.refundId,
+        replay: result.replay,
+        refund: {
+          total_cents: result.amountCents,
+          donation_cents: result.principalCents,
+          operational_fee_cents: result.feeCents,
+        },
+      });
+  }
 }

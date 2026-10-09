@@ -33,6 +33,21 @@ This project handles student meal access, donations, and a small ledger. The pri
 - Origin verification is enforced for state-changing requests.
 - Sensitive routes use strict JSON parsing with size caps.
 
+## Rate limiting
+
+- **Public endpoints** (sign-in, donation checkout, school registration) use a limiter shared by every
+  serverless instance: `rateLimitShared()` in `lib/rate-limit-shared.ts`, backed by the `rate_limits` table and
+  the atomic `rate_limit_hit` SQL function (migration 0013, service role only). Counts are exact even under
+  concurrent requests. If the database is unreachable it **fails open** to the per-instance limiter below (and logs
+  it) so an outage cannot lock every visitor out.
+- **Authenticated routes** (admin tools, QR generate/redeem/status) still use the in-memory limiter in
+  `lib/rate-limit.ts`. It is per instance and resets on cold start, so treat it as a speed bump; these routes are
+  also protected by role checks and, for passes, by database-enforced daily limits.
+- The client key comes from `getClientIp()` in `lib/security.ts`: `x-vercel-forwarded-for`, then `x-real-ip` (both
+  set by the platform), then the **last** `x-forwarded-for` entry. The first `x-forwarded-for` entry is
+  client-controlled and is never trusted. Without any valid IP the key is `local`, so all such requests share one bucket.
+- Supabase Auth also has its own rate limits and CAPTCHA settings that apply across instances; keep them enabled.
+
 ## Secret rotation
 
 - Rotate Stripe secrets and the cron secret in the deployment environment.
@@ -52,3 +67,11 @@ This project handles student meal access, donations, and a small ledger. The pri
 - This project intentionally does not expose a general-purpose public API.
 - Production deployment should use a managed Supabase project and hardened infrastructure.
 - QR-based access remains dependent on valid mobile/camera support and HTTPS or localhost.
+
+## Automated checks that guard these controls
+
+- `lib/route-guards.test.ts` fails if any API route lacks a role guard or is not on the explicit public allowlist.
+- `npm run test:permissions` checks every role against every page and API route, login outcomes, and cron endpoints.
+- `npm run test:browser` repeats the important flows in a real browser and scans each page for accessibility problems.
+- `tests/db/*.test.ts` run the actual SQL migrations in an in-memory Postgres: ledger rules, privileges, settlements,
+  rate limits, audit log and receipt claims.

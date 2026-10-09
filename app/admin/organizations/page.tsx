@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import { AdminOrganizationForm } from "@/components/admin-organization-form";
+import { PageHeader } from "@/components/page-header";
+import { EmptyState } from "@/components/empty-state";
+import { Button } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth/guards";
-import { listOrganizations } from "@/lib/organization-store";
+import { ListSearch, Pagination } from "@/components/list-controls";
+import { PAGE_SIZE, parseListParams, totalPages } from "@/lib/pagination";
+import { searchOrganizations } from "@/lib/organization-store";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -9,34 +14,35 @@ export const metadata: Metadata = {
   description: "Create and manage Kōkua Counter organizations.",
 };
 
-export default async function AdminOrganizationsPage() {
+export default async function AdminOrganizationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; q?: string }>;
+}) {
   await requireRole("admin");
-  const organizations = await listOrganizations();
+  const { page, q } = parseListParams(await searchParams);
+  const { items: organizations, total } = await searchOrganizations({ page, q });
 
   return (
     <div className="space-y-8">
-      <div className="space-y-2">
-        <p className="text-sm font-medium text-primary">Admin tools</p>
-        <h1 className="font-serif text-4xl">Organizations</h1>
-      </div>
-
-      <a
-        href="/api/admin/organizations/export"
-        className="inline-flex min-h-10 items-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-muted"
-      >
-        Export CSV
-      </a>
+      <PageHeader
+        eyebrow="Admin"
+        title="Organizations"
+        description="Partner organizations and their contacts."
+        actions={<Button asChild variant="outline"><a href="/api/admin/organizations/export">Export CSV</a></Button>}
+      />
 
       <AdminOrganizationForm />
 
       <section className="space-y-4">
-        <h2 className="font-serif text-2xl">Recent organizations</h2>
+        <h2 className="font-serif text-2xl font-semibold text-primary">Organizations</h2>
+        <ListSearch q={q} placeholder="Search by name, contact, email or city" clearHref="/admin/organizations" />
         {organizations.length === 0 ? (
-          <p className="text-muted-foreground">No organizations have been created yet.</p>
+          <EmptyState title={q ? "No organizations match your search" : "No organizations yet"}>{q ? undefined : "Add the first one with the form above."}</EmptyState>
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
             {organizations.map((organization) => (
-              <article key={organization.id} className="rounded-lg border bg-card p-4 shadow-sm">
+              <article key={organization.id} className="rounded-xl border bg-card p-5 shadow-soft">
                 <div className="mb-2 flex items-center justify-between gap-4">
                   <h3 className="font-serif text-xl">{organization.name}</h3>
                   {organization.createdAt ? (
@@ -53,6 +59,7 @@ export default async function AdminOrganizationsPage() {
             ))}
           </div>
         )}
+        <Pagination basePath="/admin/organizations" page={page} pages={totalPages(total, PAGE_SIZE)} total={total} params={{ q }} />
       </section>
     </div>
   );
