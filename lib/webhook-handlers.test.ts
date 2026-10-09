@@ -4,7 +4,7 @@ import { disputeFeeCents, handleStripeEvent, type WebhookDeps } from "@/lib/stri
 
 function makeDeps(overrides: Record<string, unknown> = {}) {
   const base = {
-    getContribution: vi.fn<WebhookDeps["getContribution"]>().mockResolvedValue({ amount_cents: 800, total_charged_cents: 840, currency: "usd" }),
+    getContribution: vi.fn<WebhookDeps["getContribution"]>().mockResolvedValue({ amount_cents: 800, operational_fee_cents: 40, fee_rate_bps: 500, total_charged_cents: 840, currency: "usd" }),
     findContributionIdByPaymentIntent: vi.fn<WebhookDeps["findContributionIdByPaymentIntent"]>().mockResolvedValue("contrib-1"),
     markContributionFailed: vi.fn<WebhookDeps["markContributionFailed"]>().mockResolvedValue(undefined),
     recordCredit: vi.fn<WebhookDeps["recordCredit"]>().mockResolvedValue(undefined),
@@ -14,6 +14,7 @@ function makeDeps(overrides: Record<string, unknown> = {}) {
     recordDisputeClosed: vi.fn<WebhookDeps["recordDisputeClosed"]>().mockResolvedValue(undefined),
     fetchProcessorFee: vi.fn<WebhookDeps["fetchProcessorFee"]>().mockResolvedValue({ feeCents: 55, balanceTransactionId: "txn_1" }),
     recordProcessorFee: vi.fn<WebhookDeps["recordProcessorFee"]>().mockResolvedValue(undefined),
+    sendReceipt: vi.fn<NonNullable<WebhookDeps["sendReceipt"]>>().mockResolvedValue(undefined),
     log: vi.fn(),
   };
   return { ...base, ...overrides } as typeof base;
@@ -41,6 +42,31 @@ describe("checkout events", () => {
     await handleStripeEvent(event("checkout.session.completed", paidSession()), deps);
     expect(deps.recordCredit).toHaveBeenCalledWith({ contributionId: "contrib-1", checkoutSessionId: "cs_1", paymentIntentId: "pi_1", amountTotalCents: 840 });
     expect(deps.recordProcessorFee).toHaveBeenCalledWith({ contributionId: "contrib-1", paymentIntentId: "pi_1", feeCents: 55, balanceTransactionId: "txn_1" });
+  });
+
+  it("emails a receipt with the stored amounts using the address from the Stripe session", async () => {
+    await handleStripeEvent(event("checkout.session.completed", paidSession({ customer_details: { email: "donor@example.com" } })), deps);
+    expect(deps.sendReceipt).toHaveBeenCalledWith({ contributionId: "contrib-1", email: "donor@example.com", donationCents: 800, feeCents: 40, feeRateBps: 500, totalCents: 840 });
+  });
+
+  it("falls back to the checkout email, and passes null when the donor gave none", async () => {
+    await handleStripeEvent(event("checkout.session.completed", paidSession({ customer_email: "fallback@example.com" })), deps);
+    expect(deps.sendReceipt.mock.calls[0][0].email).toBe("fallback@example.com");
+    await handleStripeEvent(event("checkout.session.completed", paidSession()), deps);
+    expect(deps.sendReceipt.mock.calls[1][0].email).toBeNull();
+  });
+
+  it("a receipt failure never fails the payment", async () => {
+    deps.sendReceipt.mockRejectedValue(new Error("email provider down"));
+    await handleStripeEvent(event("checkout.session.completed", paidSession({ customer_details: { email: "donor@example.com" } })), deps);
+    expect(deps.recordCredit).toHaveBeenCalledTimes(1);
+    expect(deps.log).toHaveBeenCalledWith("receipt email not sent", expect.anything());
+  });
+
+  it("no receipt for unpaid sessions or mismatched amounts", async () => {
+    await handleStripeEvent(event("checkout.session.completed", paidSession({ payment_status: "unpaid" })), deps);
+    await expect(handleStripeEvent(event("checkout.session.completed", paidSession({ amount_total: 800 })), deps)).rejects.toThrow();
+    expect(deps.sendReceipt).not.toHaveBeenCalled();
   });
 
   it("recognises nothing for an unpaid or merely created session", async () => {

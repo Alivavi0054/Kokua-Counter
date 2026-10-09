@@ -155,9 +155,10 @@ obligations** is shown on Admin → Finance. Recovering money from an eatery is 
    charity, whether any part is tax-deductible (the donor page says donations are not tax-deductible unless the
    operating organization is a registered nonprofit), state charitable-solicitation disclosure rules, and refund policy
    wording. The donor-facing text says the fee supports platform costs and does not go to the meal pool.
-7. **Transaction history**: there is no donor account area in this app, so the itemized views are the Stripe receipt,
-   the donation confirmation page, and the admin contributions/Finance pages. A donor-facing history would need
-   donor accounts first.
+7. **Transaction history**: there is no donor account area in this app, so the itemized views are the emailed receipt
+   (sent once per donation when `RESEND_API_KEY` is set and the donor gave an email; the address is read from the
+   Stripe session and never stored), Stripe's own receipt, the donation confirmation page, and the admin
+   contributions/Finance pages. A donor-facing history would need donor accounts first.
 8. Stripe **sandbox**: processing fees in test mode are simulated and may not match live fees; recorded as returned.
 
 ## Rollout

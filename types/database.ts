@@ -600,6 +600,8 @@ export type Database = {
         Args: { p_key: string; p_limit: number; p_window_ms: number };
         Returns: Json;
       };
+      claim_receipt_email: { Args: { p_contribution_id: string }; Returns: boolean };
+      release_receipt_email: { Args: { p_contribution_id: string }; Returns: undefined };
       finance_summary: { Args: Record<PropertyKey, never>; Returns: Json };
       finance_reconciliation: { Args: Record<PropertyKey, never>; Returns: Json };
       contributions_missing_processor_fee: {

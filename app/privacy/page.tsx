@@ -18,7 +18,7 @@ export default function PrivacyPage() {
     >
       <section>
         <h2>Information used</h2>
-        <p>Students use an email address to confirm eligibility and sign in. The app stores a profile role and a generic display label. Donors may provide an email address for Stripe checkout and a receipt; that address is sent to Stripe and is not retained in Kōkua Counter contribution records. A donation can be anonymous in program displays.</p>
+        <p>Students use an email address to confirm eligibility and sign in. The app stores a profile role and a generic display label. Donors may provide an email address for Stripe checkout and a receipt. That address is sent to Stripe, and we use it once to email your itemized donation receipt; it is not retained in Kōkua Counter contribution records. A donation can be anonymous in program displays.</p>
         <p>The app stores contribution amounts and status, pass hashes and expiry/status timestamps, and redemption time and eatery. The raw pass code is held in the active browser session and is not stored in the database.</p>
       </section>
 
