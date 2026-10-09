@@ -10,6 +10,15 @@ export type UserRole = "student" | "eatery" | "admin";
 export type ContributionStatus = "pending" | "completed" | "failed" | "refunded";
 export type QrStatus = "active" | "redeemed" | "expired" | "cancelled";
 export type RedemptionStatus = "completed" | "reversed";
+export type RefundStatus = "requested" | "pending" | "succeeded" | "failed" | "canceled";
+export type OpsEntryType =
+  | "fee_charge"
+  | "fee_refund"
+  | "fee_refund_reversal"
+  | "processor_fee"
+  | "processor_fee_reversal"
+  | "dispute_fee"
+  | "dispute_fee_reversal";
 export type SettlementStatus = "pending" | "processing" | "paid" | "failed";
 export type PoolEntryType =
   | "credit"
@@ -127,6 +136,12 @@ export type Database = {
           status: ContributionStatus;
           is_anonymous: boolean;
           refunded_amount_cents: number;
+          fee_rate_bps: number;
+          operational_fee_cents: number;
+          total_charged_cents: number;
+          fee_refunded_cents: number;
+          client_request_key: string | null;
+          failure_reason: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -140,6 +155,11 @@ export type Database = {
           status?: ContributionStatus;
           is_anonymous?: boolean;
           refunded_amount_cents?: number;
+          fee_rate_bps?: number;
+          operational_fee_cents?: number;
+          fee_refunded_cents?: number;
+          client_request_key?: string | null;
+          failure_reason?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -152,6 +172,11 @@ export type Database = {
           status?: ContributionStatus;
           is_anonymous?: boolean;
           refunded_amount_cents?: number;
+          fee_rate_bps?: number;
+          operational_fee_cents?: number;
+          fee_refunded_cents?: number;
+          client_request_key?: string | null;
+          failure_reason?: string | null;
           updated_at?: string;
         };
         Relationships: [];
@@ -287,6 +312,89 @@ export type Database = {
         };
         Relationships: [];
       };
+      fee_settings: {
+        Row: {
+          id: string;
+          rate_bps: number;
+          effective_at: string;
+          note: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          rate_bps: number;
+          effective_at?: string;
+          note?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: never;
+        Relationships: [];
+      };
+      refunds: {
+        Row: {
+          id: string;
+          contribution_id: string;
+          source: "admin" | "external";
+          status: RefundStatus;
+          amount_cents: number;
+          principal_cents: number;
+          fee_cents: number;
+          currency: string;
+          reason: string | null;
+          requested_by: string | null;
+          idempotency_ref: string | null;
+          stripe_refund_id: string | null;
+          failure_code: string | null;
+          failure_detail: string | null;
+          recovery_obligation_cents: number;
+          requested_at: string;
+          completed_at: string | null;
+          reversed_at: string | null;
+          updated_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      disputes: {
+        Row: {
+          id: string;
+          contribution_id: string;
+          stripe_dispute_id: string;
+          status: "open" | "won" | "lost";
+          amount_cents: number;
+          principal_cents: number;
+          fee_cents: number;
+          dispute_fee_cents: number;
+          recovery_obligation_cents: number;
+          reason: string | null;
+          stripe_status: string | null;
+          opened_at: string;
+          closed_at: string | null;
+          updated_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      operations_ledger: {
+        Row: {
+          id: string;
+          entry_type: OpsEntryType;
+          amount_cents: number;
+          contribution_id: string;
+          refund_id: string | null;
+          dispute_id: string | null;
+          reference_key: string | null;
+          metadata: Json | null;
+          created_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
       organizations: {
         Row: {
           id: string;
@@ -398,6 +506,7 @@ export type Database = {
           p_contribution_id: string;
           p_checkout_session_id: string;
           p_payment_intent_id: string;
+          p_amount_total_cents?: number | null;
         };
         Returns: undefined;
       };
@@ -406,8 +515,72 @@ export type Database = {
           p_contribution_id: string;
           p_stripe_refund_id: string;
           p_amount_cents: number;
+          p_internal_refund_id?: string | null;
+          p_provider_status?: "pending" | "succeeded";
         };
         Returns: undefined;
+      };
+      create_contribution: {
+        Args: {
+          p_donor_user_id: string | null;
+          p_principal_cents: number;
+          p_is_anonymous: boolean;
+          p_client_request_key?: string | null;
+        };
+        Returns: Json;
+      };
+      current_fee_rate_bps: { Args: { p_at?: string }; Returns: number };
+      set_operational_fee_rate: {
+        Args: { p_rate_bps: number; p_effective_at: string | null; p_created_by: string; p_note?: string | null };
+        Returns: Json;
+      };
+      reserve_refund: {
+        Args: {
+          p_contribution_id: string;
+          p_amount_cents: number | null;
+          p_reason: string | null;
+          p_requested_by: string;
+          p_idempotency_ref?: string | null;
+        };
+        Returns: Json;
+      };
+      mark_refund_submitted: {
+        Args: { p_refund_id: string; p_stripe_refund_id: string };
+        Returns: undefined;
+      };
+      mark_refund_failed: {
+        Args: { p_refund_id: string; p_failure_code: string; p_failure_detail?: string | null };
+        Returns: undefined;
+      };
+      record_processor_fee: {
+        Args: {
+          p_contribution_id: string;
+          p_payment_intent_id: string;
+          p_fee_cents: number;
+          p_balance_transaction_id?: string | null;
+        };
+        Returns: undefined;
+      };
+      record_dispute_opened: {
+        Args: {
+          p_contribution_id: string;
+          p_stripe_dispute_id: string;
+          p_amount_cents: number;
+          p_reason: string | null;
+          p_stripe_status: string | null;
+          p_dispute_fee_cents?: number;
+        };
+        Returns: undefined;
+      };
+      record_dispute_closed: {
+        Args: { p_stripe_dispute_id: string; p_outcome: "won" | "lost"; p_dispute_fee_cents?: number | null };
+        Returns: undefined;
+      };
+      finance_summary: { Args: Record<PropertyKey, never>; Returns: Json };
+      finance_reconciliation: { Args: Record<PropertyKey, never>; Returns: Json };
+      contributions_missing_processor_fee: {
+        Args: { p_limit?: number };
+        Returns: Array<{ contribution_id: string; payment_intent_id: string }>;
       };
       record_refund_reversal: {
         Args: { p_stripe_refund_id: string };
