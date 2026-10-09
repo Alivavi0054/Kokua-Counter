@@ -21,7 +21,7 @@ export function LoginForm() {
     errorParam === "unauthorized"
       ? { tone: "destructive", text: "That account cannot open this page." }
       : errorParam === "domain"
-        ? { tone: "destructive", text: "Use a University of Hawaiʻi email ending in @hawaii.edu." }
+        ? { tone: "destructive", text: "Student sign-in currently works with @hawaii.edu school emails. More Hawaiʻi schools are being added, so ask your school to register with Kōkua Counter." }
         : null,
   );
   const [pending, setPending] = useState(false);
@@ -73,7 +73,7 @@ export function LoginForm() {
               id="login-email"
               type="email"
               inputMode="email"
-              placeholder="you@hawaii.edu"
+              placeholder="you@yourschool.edu"
               required
               autoComplete="email"
               autoCapitalize="none"

@@ -118,7 +118,7 @@ export function SiteFooter() {
             Kōkua Counter
           </Link>
           <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">
-            A shared pool of meal credits that helps University of Hawaiʻi students eat at participating local eateries.
+            A shared pool of meal credits that helps students across Hawaiʻi, from high schools to colleges and universities, eat at participating local eateries.
           </p>
         </div>
         <nav aria-label="Explore" className="space-y-2 text-sm">
@@ -141,7 +141,13 @@ export function SiteFooter() {
       <div className="border-t">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-xs text-muted-foreground sm:px-6">
           <p>© {new Date().getFullYear()} Kōkua Counter. Meal credits are shared across participating eateries in Hawaiʻi.</p>
-          <p>Made with love and care by Ali Abdulla</p>
+          <p className="flex items-center gap-1.5">
+            Made with
+            <svg viewBox="0 0 20 20" className="size-3.5 fill-accent" aria-label="love" role="img">
+              <path d="M10 17.5s-6.5-4.1-6.5-8.6A3.6 3.6 0 0 1 10 6.6a3.6 3.6 0 0 1 6.5 2.3c0 4.5-6.5 8.6-6.5 8.6Z" />
+            </svg>
+            and aloha by <span className="font-semibold text-foreground">Ali Abdulla</span>
+          </p>
         </div>
       </div>
     </footer>

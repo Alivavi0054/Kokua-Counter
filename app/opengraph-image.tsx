@@ -21,7 +21,7 @@ export default function OpengraphImage() {
         }}
       >
         <div style={{ display: "flex", fontSize: 30, letterSpacing: 4, textTransform: "uppercase", color: "#a3e0c8" }}>
-          Meals for University of Hawaiʻi students
+          Meals for students across Hawaiʻi
         </div>
         <div style={{ display: "flex", marginTop: 28, fontSize: 104, fontWeight: 700, lineHeight: 1.05 }}>Kokua Counter</div>
         <div style={{ display: "flex", marginTop: 32, fontSize: 40, color: "#e7efe9", maxWidth: 900 }}>

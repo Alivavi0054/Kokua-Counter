@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     if (!isHawaiiEduEmail(email)) {
       await supabase.auth.signOut();
       return NextResponse.json(
-        { error: "Use a University of Hawaiʻi email ending in @hawaii.edu." },
+        { error: "Student sign-in currently works with @hawaii.edu school emails. More Hawaiʻi schools are being added, so ask your school to register with Kōkua Counter." },
         { status: 403 },
       );
     }

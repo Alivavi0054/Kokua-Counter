@@ -18,7 +18,7 @@ export default function TermsPage() {
     >
       <section>
         <h2>Using meal passes</h2>
-        <p>Eligible students sign in with a confirmed University of Hawaiʻi email address and present an active, single-use QR pass at a participating eatery. A pass expires at the time shown in the app. Do not share or reuse a pass.</p>
+        <p>Eligible students at participating Hawaiʻi schools sign in with a confirmed school email address and present an active, single-use QR pass at a participating eatery. A pass expires at the time shown in the app. Do not share or reuse a pass.</p>
         <p>Default limits are one redeemed meal and three generated passes per Honolulu calendar day. Limits may be adjusted by the operating organization.</p>
       </section>
 

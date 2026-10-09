@@ -17,7 +17,7 @@ const steps = [
   },
   {
     title: "Students create a pass",
-    body: "A University of Hawaiʻi student signs in with a confirmed @hawaii.edu email and requests a private, single-use QR pass.",
+    body: "A student at a participating school, from high schools to colleges and universities, signs in with a confirmed school email and requests a private, single-use QR pass.",
   },
   {
     title: "Eateries scan and serve",
@@ -29,6 +29,10 @@ const faqs = [
   {
     q: "Is a student’s identity shared with the eatery?",
     a: "No. The scanner only confirms whether a pass is valid. It does not show a name or email.",
+  },
+  {
+    q: "Which schools can take part?",
+    a: "Any school in Hawaiʻi: high schools, community colleges, colleges and universities. A school joins by registering with the program team; once it is set up, its students can sign in with their school email.",
   },
   {
     q: "Are there limits on use?",
@@ -80,6 +84,20 @@ export default function AboutPage() {
             </div>
           ))}
         </dl>
+      </section>
+
+      <section aria-labelledby="maker" className="flex flex-col gap-5 rounded-xl border bg-card p-6 shadow-soft sm:flex-row sm:items-center">
+        <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-secondary font-serif text-xl font-semibold text-primary" aria-hidden="true">
+          AA
+        </span>
+        <div className="space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-wider text-accent">Made with love and aloha</p>
+          <h2 id="maker" className="font-serif text-2xl font-semibold text-primary">Created by Ali Abdulla</h2>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Kōkua Counter was built so no student in Hawaiʻi has to choose between learning and eating. Every detail, from the private
+            single-use pass to the shared meal pool, was designed with care for the students, schools and local eateries it serves.
+          </p>
+        </div>
       </section>
 
       <section className="flex flex-col items-start gap-4 rounded-xl bg-primary px-6 py-8 text-primary-foreground sm:flex-row sm:items-center sm:justify-between">

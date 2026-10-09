@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Shared meals, stronger community",
   description:
-    "Help University of Hawaiʻi students access a meal through Kōkua Counter's shared meal pool.",
+    "Help students across Hawaiʻi, from high schools to colleges and universities, access a meal through Kōkua Counter's shared meal pool.",
 };
 
 export default async function HomePage() {
@@ -23,7 +23,7 @@ export default async function HomePage() {
         <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-12 lg:gap-10">
           <div className="space-y-6 lg:col-span-7">
             <p className="inline-flex items-center gap-2 rounded-full bg-[#e7efe9] px-3.5 py-1.5 text-xs font-semibold text-[#24503b]">
-              Shared meal credits for University of Hawaiʻi students
+              Shared meal credits for students across Hawaiʻi
             </p>
             <h1 className="max-w-3xl font-serif text-4xl font-semibold leading-[1.08] text-[#18392b] sm:text-5xl lg:text-6xl">
               A good meal can change the shape of a day.
@@ -96,7 +96,7 @@ export default async function HomePage() {
           <article className="border-t-2 border-[#2a6f78] pt-5">
             <p className="text-xs font-semibold uppercase text-[#2a6f78]">02 · Sign in</p>
             <h2 className="mt-3 font-serif text-2xl font-semibold text-[#18392b]">Students create a pass</h2>
-            <p className="mt-2 text-sm leading-relaxed text-stone-700">Eligible students sign in with a confirmed University of Hawaiʻi email and request a single-use QR pass.</p>
+            <p className="mt-2 text-sm leading-relaxed text-stone-700">Students at participating schools, from high schools to colleges and universities, sign in with their school email and request a single-use QR pass.</p>
           </article>
           <article className="border-t-2 border-[#24503b] pt-5">
             <p className="text-xs font-semibold uppercase text-[#24503b]">03 · Share</p>
@@ -188,7 +188,7 @@ export default async function HomePage() {
       <section className="bg-[#e7efe9] px-4 py-12 text-center sm:px-6 ">
         <div className="mx-auto max-w-3xl space-y-4">
           <h2 className="font-serif text-3xl font-semibold text-[#18392b]">Make room for one more at the table.</h2>
-          <p className="text-sm leading-relaxed text-stone-700">A contribution helps keep meal credits available to University of Hawaiʻi students at participating eateries.</p>
+          <p className="text-sm leading-relaxed text-stone-700">A contribution helps keep meal credits available to students across Hawaiʻi at participating eateries.</p>
           <Link href="/donate" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#a94530] px-6 text-sm font-semibold text-white transition-colors hover:bg-[#8f3a26]">Donate to the shared pool</Link>
         </div>
       </section>

@@ -37,7 +37,7 @@ export default async function LoginPage({
           Students create a single-use meal pass, eateries scan passes and see today’s meals, and administrators manage the program.
         </p>
         <ul className="space-y-2 text-sm text-muted-foreground">
-          <li className="flex gap-2"><span aria-hidden="true" className="text-accent">●</span> Students sign in with their @hawaii.edu email.</li>
+          <li className="flex gap-2"><span aria-hidden="true" className="text-accent">●</span> Students sign in with the school email of a participating school.</li>
           <li className="flex gap-2"><span aria-hidden="true" className="text-accent">●</span> Eatery and admin accounts are created by the program team.</li>
         </ul>
       </div>
